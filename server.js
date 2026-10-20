@@ -251,6 +251,11 @@ class Room {
     this.updateTurrets(dt);
     this.updateZombies(dt);
 
+    if (this.players.size && [...this.players.values()].every(p => p.state === 'dead')) {
+      this.gameOver();
+      return;
+    }
+
     if (this.base.hp <= 0) {
       this.base.hp = 0;
       this.gameOver();

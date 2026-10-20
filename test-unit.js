@@ -302,6 +302,14 @@ function makeRoom(nPlayers) {
   log('MAX_PLAYERS=8', C.MAX_PLAYERS === 8);
 }
 
+{
+  const {room,list}=makeRoom(1);room.start();list[0].state='dead';room.update(0.1);
+  log('tek oyuncu öldüğünde beklemeden oyun biter',room.state==='over');
+}
+{
+  const {room,list}=makeRoom(2);room.start();list[0].state='dead';room.update(0.1);
+  log('hayatta ekip arkadaşı varken oyun sürer',room.state==='playing');
+}
 clearInterval(tickTimer);
 const fails = results.filter(r => !r.ok).length;
 console.log('\nSONUÇ: ' + (results.length - fails) + '/' + results.length + ' geçti');

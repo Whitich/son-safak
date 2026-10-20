@@ -389,8 +389,8 @@ function renderShop() {
     const can = owned || gold >= w.cost;
     h += '<div class="shopItem ' + (owned ? 'owned ' : '') + (active ? 'can' : can ? '' : 'no') + '" data-buy="' + id + '">' +
       '<div><div class="nm">' + w.name + (active ? ' ●' : '') + '</div>' +
-      '<div class="ds">Hasar ' + w.damage + ' · ' + (w.pellets > 1 ? w.pellets + ' saçma · ' : '') + 'Kad ' + w.mag + '</div></div>' +
-      '<div class="pr">' + (owned ? (active ? 'TAŞIYOR' : 'EŞLE') : '$' + w.cost) + '</div></div>';
+      '<div class="ds">Hasar ' + w.damage + ' · ' + (w.pellets > 1 ? w.pellets + ' saçma · ' : '') + 'Şarjör ' + w.mag + '</div></div>' +
+      '<div class="pr">' + (owned ? (active ? 'TAŞIYOR' : 'KUŞAN') : '$' + w.cost) + '</div></div>';
   }
   h += '</div><div class="shopGroup"><div class="gt">İNŞA</div>';
   for (const id of ['wall', 'turret']) {
@@ -479,6 +479,7 @@ function updateHud() {
   }
 
   if (myState === 'down') {
+    downEl.querySelector('.t').textContent = 'YERE DÜŞTÜN';
     downEl.classList.remove('hidden');
     $('downTxt').textContent = 'Kanama: ' + Math.ceil(myBleed || 0) + ' sn · Ekip arkadaşın yanına gelsin (' + Math.round((myRevive || 0) / G.PLAYER.reviveTime * 100) + '%)';
   } else if (downEl.classList.contains('hidden') === false && myState === 'alive') {
@@ -598,7 +599,7 @@ function updateParticles(dt) {
 }
 
 /* ---------- rendering ---------- */
-function lerpEntities(prevArr, nextArr, key) {
+function lerpEntities(key) {
   const now = performance.now();
   const p0 = snapPrev, p1 = snapNext;
   const out = [];
@@ -641,8 +642,8 @@ function render(now) {
 
   drawBase(now);
 
-  const interpPlayers = lerpEntities(snapPrev, snapNext, 'P');
-  const interpZombies = lerpEntities(snapPrev, snapNext, 'Z');
+  const interpPlayers = lerpEntities('P');
+  const interpZombies = lerpEntities('Z');
 
   for (const w of wallsLive) drawWall(w);
 
