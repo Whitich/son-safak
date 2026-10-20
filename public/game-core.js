@@ -203,15 +203,26 @@
   SHOP.teamammo={name:'Ekip Mühimmat Sandığı',cost:100,desc:'Tüm oyuncuların aktif ve yedek silahlarının şarjörlerini doldurur.'};
   const newUpgrades=()=>Object.fromEntries(Object.keys(UPGRADES).map(k=>[k,0]));
   const laserDamage=t=>Math.round(3+147*Math.pow(Math.max(0,Math.min(1,t/4)),3));
+  const CLOTHING_COLORS=[
+    {id:'sage',name:'Adaçayı',value:'#8cab81'},{id:'cobalt',name:'Kobalt',value:'#629ddd'},
+    {id:'ember',name:'Kor',value:'#dc865c'},{id:'plum',name:'Erik',value:'#b087c8'},
+    {id:'sand',name:'Kum',value:'#d0bb8c'},{id:'rose',name:'Gül',value:'#cf809e'},
+    {id:'charcoal',name:'Kömür',value:'#45535e'},{id:'ivory',name:'Fildişi',value:'#dedcc4'},
+    {id:'teal',name:'Petrol',value:'#409d98'},{id:'crimson',name:'Bordo',value:'#a94e62'}
+  ];
   const APPEARANCE={
-    colors:[{id:'sage',name:'Adaçayı',value:'#8cab81'},{id:'cobalt',name:'Kobalt',value:'#629ddd'},{id:'ember',name:'Kor',value:'#dc865c'},{id:'plum',name:'Erik',value:'#b087c8'},{id:'sand',name:'Kum',value:'#d0bb8c'},{id:'rose',name:'Gül',value:'#cf809e'}],
-    outfits:[{id:'ranger',name:'İzci'},{id:'heavy',name:'Ağır Zırh'},{id:'hazmat',name:'Koruyucu Tulum'}],
-    heads:[{id:'helmet',name:'Kask'},{id:'beret',name:'Bere'},{id:'hood',name:'Kapüşon'}],
+    outfits:[{id:'ranger',name:'İzci Yeleği'},{id:'heavy',name:'Ağır Göğüslük'},{id:'hazmat',name:'Koruyucu Üst'},{id:'hoodie',name:'Sweatshirt'},{id:'coat',name:'Uzun Ceket'},{id:'medic',name:'Sıhhiye Yeleği'}],
+    colors:CLOTHING_COLORS,
+    heads:[{id:'helmet',name:'Kask'},{id:'beret',name:'Bere'},{id:'hood',name:'Kapüşon'},{id:'cap',name:'Kep'},{id:'beanie',name:'Örgü Bere'},{id:'cowboy',name:'Kovboy Şapkası'},{id:'headphones',name:'Kulaklık'},{id:'none',name:'Başlıksız'}],
+    headColors:CLOTHING_COLORS,
+    bottoms:[{id:'cargo',name:'Kargo Pantolon'},{id:'jeans',name:'Kot Pantolon'},{id:'shorts',name:'Şort'},{id:'skirt',name:'Düz Etek'},{id:'pleated',name:'Pileli Etek'}],
+    bottomColors:CLOTHING_COLORS,
     skins:[{id:'light',name:'Açık',value:'#e1bd99'},{id:'medium',name:'Orta',value:'#b78561'},{id:'deep',name:'Koyu',value:'#805742'}]
   };
   function sanitizeAppearance(input={}){
     if(!input||typeof input!=='object')input={};
-    return Object.fromEntries(Object.entries(APPEARANCE).map(([key,values])=>[key,values.some(v=>v.id===input[key])?input[key]:values[0].id]));
+    const defaults={headColors:APPEARANCE.colors.some(v=>v.id===input.colors)?input.colors:'sage',bottomColors:'charcoal'};
+    return Object.fromEntries(Object.entries(APPEARANCE).map(([key,values])=>[key,values.some(v=>v.id===input[key])?input[key]:(defaults[key]||values[0].id)]));
   }
   const ZOMBIE_GUIDE={
     walker:{night:1,role:'Temel tehdit',behavior:'Sığınağa yürür; yakındaki oyuncuya döner. Vurulursa saldıranı takip eder.',counter:'Mesafeni koru. Tabanca ve sıradan barikatlar yeterlidir.'},

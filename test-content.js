@@ -17,5 +17,15 @@ test('Ekip sağlık ve mühimmat destekleri bütün oyunculara işler',()=>{cons
 test('Katalog tüm türleri doğru ilk gecede ve karşı taktikleriyle açıklar',()=>{for(const [id,g] of Object.entries(C.ZOMBIE_GUIDE)){assert.ok(g.behavior&&g.counter&&g.role);assert.ok(C.waveComp(g.night).includes(id),id+' unlock night mismatch')}assert.equal(Object.keys(C.ZOMBIE_GUIDE).length,Object.keys(C.ZOMBIES).length);});
 test('Görünüm sadece izinli seçenekleri kabul eder ve oyuncu durumuna eklenir',()=>{const ap=C.sanitizeAppearance({colors:'cobalt',outfits:'hazmat',heads:'beret',skins:'deep'});const r=new Room('LOOK');const p=r.addPlayer(fake(),'Look','#fff',ap);assert.deepEqual(p.appearance,ap);assert.equal(p.color,'#629ddd');assert.equal(p.hp,C.PLAYER.hp);const clean=C.sanitizeAppearance({colors:'<script>',outfits:'bogus'});assert.equal(clean.colors,'sage');assert.equal(clean.outfits,'ranger');assert.deepEqual(r.snapshot().P[0].ap,ap);});
 test('Geçersiz market anahtarları ortak parayı bozamaz',()=>{const {r,a}=setup();const before=r.gold;assert.equal(r.buy('__proto__',a.id),false);assert.equal(r.buy('constructor',a.id),false);assert.equal(r.build('toString',400,400,a.id),false);assert.equal(r.gold,before);});
+test('Eski görünüm kaydı yeni bağımsız renkleri güvenle tamamlar',()=>{
+  const legacy=C.sanitizeAppearance({colors:'cobalt',outfits:'heavy',heads:'helmet',skins:'deep'});
+  assert.equal(legacy.colors,'cobalt');assert.equal(legacy.headColors,'cobalt');assert.equal(legacy.bottomColors,'charcoal');assert.equal(legacy.bottoms,'cargo');
+  const look=C.sanitizeAppearance({...legacy,colors:'ivory',headColors:'crimson',bottomColors:'plum',bottoms:'pleated'});
+  assert.equal(look.colors,'ivory');assert.equal(look.headColors,'crimson');assert.equal(look.bottomColors,'plum');
+  assert.deepEqual(C.sanitizeAppearance(JSON.parse(JSON.stringify(look))),look);
+  const changed=C.sanitizeAppearance({...look,colors:'teal'});assert.equal(changed.headColors,'crimson');assert.equal(changed.bottomColors,'plum');
+  const invalid=C.sanitizeAppearance({...look,heads:'<script>',bottoms:'bogus',headColors:'bogus',bottomColors:'bogus'});
+  assert.equal(invalid.heads,'helmet');assert.equal(invalid.bottoms,'cargo');assert.equal(invalid.headColors,'ivory');assert.equal(invalid.bottomColors,'charcoal');
+});
 console.log('SONUÇ: '+passed+' yeni içerik testi geçti');
 }finally{clearInterval(tickTimer)}

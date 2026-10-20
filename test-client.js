@@ -38,7 +38,7 @@ vm.runInContext("for(const t of Object.keys(G.ZOMBIES))drawZombie({i:1,t,x:100,y
 assert.equal(depth,0);
 console.log('PASS | closing construction, all new structure and enemy renderers');
 
-vm.runInContext(`for(const outfits of G.APPEARANCE.outfits) for(const heads of G.APPEARANCE.heads) for(const skins of G.APPEARANCE.skins) for(const angle of [0,Math.PI/2,Math.PI,-Math.PI/2]) for(const down of [false,true]) window.CharacterArt.draw(ctx,{outfits:outfits.id,heads:heads.id,skins:skins.id},angle,1.2,1,down);`,Object.assign(sandbox,{ctx}));
+vm.runInContext(`for(const outfits of G.APPEARANCE.outfits) for(const heads of G.APPEARANCE.heads) for(const bottoms of G.APPEARANCE.bottoms) for(const skins of G.APPEARANCE.skins) for(const angle of [0,Math.PI/2,Math.PI,-Math.PI/2]) for(const down of [false,true]) window.CharacterArt.draw(ctx,{outfits:outfits.id,heads:heads.id,bottoms:bottoms.id,colors:'ivory',headColors:'crimson',bottomColors:'teal',skins:skins.id},angle,1.2,1,down);`,Object.assign(sandbox,{ctx}));
 assert.equal(depth,0,'All survivor outfits, headings and down poses balance canvas state');
 console.log('PASS | all survivor outfits, headwear, skin tones, aim directions and down poses');
 

@@ -31,7 +31,7 @@ const lastSnap = inbox => inbox.filter(m => m.t === 's').pop();
 (async () => {
   // 1. oda kur
   const a = await connect();
-  a.ws.send(JSON.stringify({ t: 'join', name: 'Host', create: true, appearance:{colors:'cobalt',outfits:'hazmat',heads:'hood',skins:'deep'} }));
+  a.ws.send(JSON.stringify({ t: 'join', name: 'Host', create: true, appearance:{colors:'cobalt',outfits:'hazmat',heads:'cap',skins:'deep',headColors:'sand',bottoms:'pleated',bottomColors:'plum'} }));
   const joined = await waitFor(a.inbox, m => m.t === 'joined', 3000);
   log('oda kurma', !!joined.code, 'kod=' + joined.code);
   const code = joined.code;
@@ -64,7 +64,8 @@ const lastSnap = inbox => inbox.filter(m => m.t === 's').pop();
   a.ws.send(JSON.stringify({t:'buy',item:'vitality'}));
   const upgraded = await waitFor(a.inbox,m=>m.t==='s'&&m.P.every(p=>p.mh===125&&p.u.vitality===1),3000);
   log('ortak yükseltme 5 oyuncuya uygulandı',upgraded.g===snap.g-C.UPGRADES.vitality.cost);
-  log('özelleştirme tüm istemcilere iletildi',upgraded.P.find(p=>p.n==='Host').ap.outfits==='hazmat');
+  const peerLook=(await waitFor(bots[0].inbox,m=>m.t==='s'&&m.P.some(p=>p.n==='Host'),3000)).P.find(p=>p.n==='Host').ap;
+  log('özelleştirme tüm istemcilere iletildi',peerLook.outfits==='hazmat'&&peerLook.colors==='cobalt'&&peerLook.headColors==='sand'&&peerLook.bottoms==='pleated'&&peerLook.bottomColors==='plum');
 
   // 5. dalga 1
   a.ws.send(JSON.stringify({ t: 'skip' }));

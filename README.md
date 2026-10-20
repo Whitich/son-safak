@@ -1,4 +1,4 @@
-# Son Şafak 4.1
+# Son Şafak 4.2
 
 [Tarayıcıda oyna](https://son-safak.onrender.com/) — 1–8 kişilik kooperatif zombi savunması.
 
@@ -36,7 +36,7 @@ Odak Lazeri aynı hedefte 4 saniye tutulduğunda her 0.2 sn vuruşu 3 hasardan 1
 
 Tesla Yayı 160 menzilde 3 ek hedefe, her seferinde %25 azalan hasarla sıçrar. Alev Püskürtücü 4 sn boyunca 16 hasar/sn yanma uygular. Ekip Sağlık Paketi ayaktaki herkesi iyileştirir; Ekip Mühimmat Sandığı tüm aktif/yedek şarjörleri doldurur.
 
-Ana menüde 6 kıyafet rengi, 3 kıyafet, 3 başlık ve 3 ten rengi seçilebilir. Görünüm kozmetiktir, kaydedilir ve diğer oyunculara iletilir. Zombi Kataloğu tüm türlerin istatistiklerini, açılış gecelerini, davranışlarını ve karşı taktiklerini gösterir.
+Ana menüde 6 üst modeli, 8 başlık, 5 alt modeli (kargo/kot pantolon, şort, düz/pileli etek) ve 3 ten rengi seçilebilir. Başlık, üst/göğüslük ve alt için 10 renk birbirinden bağımsız seçilir. Üst / Başlık / Alt / Ten sekmeleri iki önizlemeyi birlikte günceller; oyun içi önizlemede yürüyüş animasyonu vardır. Eski kayıtlar korunarak yeni alanlar varsayılanlarla tamamlanır. Görünüm kozmetiktir, kaydedilir ve diğer oyunculara iletilir. Zombi Kataloğu tüm türlerin istatistiklerini, açılış gecelerini, davranışlarını ve karşı taktiklerini gösterir.
 
 Ses Web Audio motoruyla ilk kullanıcı etkileşiminde açılır. Ana menüden Sesi dene ve ses seviyesi kontrolü, oyun içinden ses aç/kapat kullanılabilir. Tercihler tarayıcıda saklanır.
 
