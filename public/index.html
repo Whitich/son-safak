@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Son Şafak</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #0a0d12; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; color: #dfe7ee; user-select: none; }
+  canvas { display: block; position: absolute; inset: 0; }
+  .hidden { display: none !important; }
+
+  .screen {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 14px; z-index: 20;
+    background: radial-gradient(ellipse at center, #121a24 0%, #07090d 100%);
+  }
+  .title { font-size: 44px; font-weight: 800; letter-spacing: 3px; color: #ff5a5a; text-shadow: 0 0 24px rgba(255,60,60,.55); }
+  .subtitle { color: #7f8fa3; font-size: 14px; margin-top: -8px; }
+
+  .card {
+    background: rgba(18, 24, 33, .92); border: 1px solid #263244; border-radius: 14px;
+    padding: 26px 30px; display: flex; flex-direction: column; gap: 12px; min-width: 340px;
+    box-shadow: 0 12px 40px rgba(0,0,0,.5);
+  }
+  .card h3 { font-size: 15px; color: #8fa3bb; font-weight: 600; text-transform: uppercase; letter-spacing: 1.5px; }
+  input[type=text] {
+    background: #0c1118; border: 1px solid #2c3a4e; border-radius: 8px; color: #eef;
+    padding: 11px 13px; font-size: 15px; outline: none; width: 100%;
+  }
+  input[type=text]:focus { border-color: #ff5a5a; }
+  button {
+    background: linear-gradient(180deg, #ff6b5e, #e03e3e); color: #fff; border: none;
+    border-radius: 8px; padding: 12px 18px; font-size: 15px; font-weight: 700;
+    cursor: pointer; letter-spacing: .5px; transition: transform .08s, filter .15s;
+  }
+  button:hover { filter: brightness(1.12); }
+  button:active { transform: scale(.97); }
+  button.secondary { background: linear-gradient(180deg, #2d3d52, #1e2a3a); border: 1px solid #3a4c66; }
+  button.green { background: linear-gradient(180deg, #3fbf6f, #2a8f52); }
+  button:disabled { opacity: .45; cursor: default; }
+  .row { display: flex; gap: 10px; }
+  .row > * { flex: 1; }
+  .hint { font-size: 12.5px; color: #66788e; text-align: center; line-height: 1.5; }
+
+  #err { color: #ff7070; font-size: 13px; min-height: 17px; text-align: center; }
+
+  /* Lobby */
+  #lobbyList { display: flex; flex-direction: column; gap: 7px; max-height: 300px; overflow-y: auto; }
+  .pl {
+    display: flex; align-items: center; gap: 10px; background: #101720;
+    border: 1px solid #232f3f; padding: 9px 12px; border-radius: 8px; font-size: 14.5px;
+  }
+  .pl .dot { width: 13px; height: 13px; border-radius: 50%; flex: none; box-shadow: 0 0 7px currentColor; }
+  .pl .tag { margin-left: auto; font-size: 11.5px; color: #ffd166; font-weight: 700; letter-spacing: 1px; }
+  #roomCodeBig {
+    font-size: 34px; font-weight: 800; letter-spacing: 9px; color: #ffd166;
+    text-shadow: 0 0 16px rgba(255,209,102,.45); text-align: center;
+  }
+
+  /* HUD */
+  #hud { position: absolute; inset: 0; pointer-events: none; z-index: 10; }
+  .hudPanel { background: rgba(8, 11, 16, .78); border: 1px solid rgba(60,78,102,.6); border-radius: 10px; padding: 9px 13px; }
+  #hpBox { position: absolute; left: 14px; bottom: 14px; width: 250px; }
+  .bar { height: 15px; background: #16202c; border-radius: 8px; overflow: hidden; position: relative; border: 1px solid #2a3849; }
+  .bar > i { display: block; height: 100%; transition: width .18s; border-radius: 7px; }
+  .bar > b {
+    position: absolute; inset: 0; font-size: 10.5px; font-style: normal; display: flex;
+    align-items: center; justify-content: center; color: #fff; text-shadow: 0 1px 2px #000; font-weight: 700;
+  }
+  #baseBox { position: absolute; left: 50%; top: 12px; transform: translateX(-50%); width: 330px; text-align: center; }
+  #baseBox .lbl { font-size: 11px; letter-spacing: 2.5px; color: #9db2c9; margin-bottom: 4px; font-weight: 700; }
+  #goldBox { position: absolute; right: 14px; top: 12px; text-align: right; }
+  #goldBox .g { font-size: 25px; font-weight: 800; color: #ffd166; text-shadow: 0 0 10px rgba(255,209,102,.4); }
+  #goldBox .wv { font-size: 13px; color: #9db2c9; }
+  #waveTimer { font-size: 12px; color: #ff9d68; font-weight: 700; }
+  #ammoBox { position: absolute; right: 14px; bottom: 14px; text-align: right; }
+  #ammoBox .wn { font-size: 13px; color: #9db2c9; font-weight: 600; }
+  #ammoBox .am { font-size: 27px; font-weight: 800; color: #fff; }
+  #ammoBox .am.low { color: #ff5a5a; }
+  #ammoBox .am small { font-size: 15px; color: #7f8fa3; }
+
+  #feed { position: absolute; left: 14px; top: 12px; display: flex; flex-direction: column; gap: 5px; max-width: 340px; }
+  .feedItem {
+    background: rgba(8,11,16,.82); border-left: 3px solid #ff5a5a; padding: 6px 11px;
+    border-radius: 5px; font-size: 13px; animation: fin .25s ease-out; color: #cdd8e4;
+  }
+  @keyframes fin { from { transform: translateX(-16px); opacity: 0; } }
+
+  #centerMsg {
+    position: absolute; left: 50%; top: 34%; transform: translate(-50%, -50%);
+    font-size: 46px; font-weight: 800; letter-spacing: 5px; color: #fff;
+    text-shadow: 0 0 30px rgba(255,90,90,.8); pointer-events: none; text-align: center;
+  }
+  #centerSub { font-size: 17px; font-weight: 600; color: #ffd166; letter-spacing: 2px; margin-top: 8px; }
+
+  #scoreboard {
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    min-width: 430px; z-index: 14;
+  }
+  #scoreboard table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  #scoreboard th { text-align: left; color: #7f8fa3; font-size: 11.5px; letter-spacing: 1.5px; padding: 7px 10px; border-bottom: 1px solid #2a3849; }
+  #scoreboard td { padding: 8px 10px; border-bottom: 1px solid #1a2432; }
+
+  /* Shop */
+  #shop {
+    position: absolute; right: 14px; top: 76px; width: 330px; z-index: 15;
+    background: rgba(8, 11, 16, .95); border: 1px solid #2c3a4e; border-radius: 12px;
+    padding: 14px; pointer-events: auto; max-height: calc(100% - 160px); overflow-y: auto;
+  }
+  #shop h4 { font-size: 13px; letter-spacing: 2px; color: #9db2c9; margin-bottom: 10px; }
+  .shopGroup { margin-bottom: 13px; }
+  .shopGroup > .gt { font-size: 11px; color: #66788e; letter-spacing: 1.5px; margin: 9px 0 6px; font-weight: 700; }
+  .shopItem {
+    display: flex; align-items: center; gap: 9px; background: #101720; border: 1px solid #232f3f;
+    padding: 8px 10px; border-radius: 8px; margin-bottom: 6px; cursor: pointer; transition: border-color .12s, background .12s;
+  }
+  .shopItem:hover { border-color: #4a6180; background: #141d29; }
+  .shopItem.can { border-color: #2f7a4f; }
+  .shopItem.no { opacity: .5; }
+  .shopItem .nm { font-size: 13.5px; font-weight: 700; }
+  .shopItem .ds { font-size: 11.5px; color: #7f8fa3; }
+  .shopItem .pr { margin-left: auto; font-size: 14px; font-weight: 800; color: #ffd166; white-space: nowrap; }
+  .shopItem.owned .pr { color: #69d990; }
+
+  #buildHint {
+    position: absolute; left: 50%; bottom: 64px; transform: translateX(-50%);
+    background: rgba(8,11,16,.88); border: 1px solid #2c3a4e; border-radius: 8px;
+    padding: 8px 16px; font-size: 13.5px; color: #cdd8e4;
+  }
+  #buildHint b { color: #69d990; }
+
+  #downOverlay {
+    position: absolute; inset: 0; background: rgba(120, 10, 10, .28); z-index: 12;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none;
+  }
+  #downOverlay .t { font-size: 40px; font-weight: 800; color: #ff5a5a; letter-spacing: 4px; text-shadow: 0 0 24px #000; }
+  #downOverlay .s { font-size: 17px; color: #ffd6d6; margin-top: 10px; }
+
+  #roomChip {
+    position: absolute; left: 50%; top: 62px; transform: translateX(-50%);
+    font-size: 12px; color: #66788e; letter-spacing: 1.5px; text-align: center;
+  }
+  #roomChip b { color: #ffd166; letter-spacing: 3px; }
+
+  #pingBox { position: absolute; left: 14px; top: -2px; font-size: 11px; color: #55677e; }
+
+  kbd {
+    background: #1a2432; border: 1px solid #33445c; border-bottom-width: 2px; border-radius: 4px;
+    padding: 1px 6px; font-size: 11.5px; font-family: inherit; color: #bcd;
+  }
+
+  #overStats { width: 400px; }
+  #overStats .sline { display: flex; justify-content: space-between; padding: 7px 4px; border-bottom: 1px solid #1e2a3a; font-size: 14.5px; }
+  #overStats .sline b { color: #ffd166; }
+
+  :root { --mint:#9ce2be; }
+  .screen { background:radial-gradient(ellipse at 25% 40%,#28413b55,transparent 55%),repeating-linear-gradient(90deg,transparent 0 79px,#a2c4b206 80px),linear-gradient(145deg,#111e20,#070e11); }
+  .screen::before {content:'';position:absolute;inset:24px;border:1px solid #a3c9b41a;pointer-events:none;}
+  .title {font-size:clamp(40px,7vw,86px);letter-spacing:9px;color:#edf3df;text-shadow:none;line-height:1.1;}
+  .title span {color:#a8d9b3;}
+  .eyebrow {font-size:11px;letter-spacing:5px;color:#95b7a5;}
+  .menuStory {text-align:center;line-height:1.7;color:#b4c4bf;font-size:15px;margin:0 0 5px;}
+  .subtitle {color:#78938c;font-size:13px;}
+  .card {background:#101b20ed;border-color:#3c514a;border-radius:5px;padding:23px;min-width:390px;max-width:94vw;}
+  button {border-radius:3px;background:#b9dba3;color:#13281f;box-shadow:none;}
+  button.secondary {background:#1f302f;border-color:#405c51;color:#d6e3d7;}
+  input[type=text] {border-radius:3px;border-color:#3d514c;background:#0c171c;}
+  input[type=text]:focus {border-color:#b9dba3;}
+  .card h3 {font-size:10px;letter-spacing:2px;color:#92a99d;}
+  #soloBtn {padding:16px 12px;margin:4px 0 8px;}
+  #gameBrand {position:absolute;left:20px;top:18px;font-weight:900;letter-spacing:3px;font-size:18px;color:#dce6d6;}
+  #gameBrand span {display:block;font-size:10px;letter-spacing:2px;margin-top:5px;color:#9ce2be;}
+  #feed {top:80px;}
+  #actionDock {position:absolute;bottom:20px;left:50%;transform:translateX(-50%);display:flex;gap:6px;pointer-events:auto;}
+  #actionDock button {padding:10px;font-size:10px;white-space:nowrap;}
+  .hudPanel {border-radius:4px;border-color:#6a8a6c55;background:#0b171be8;}
+  #shop {border-radius:4px;border-color:#66866b;background:#0d1a1cf5;}
+  #centerMsg {font-size:32px;letter-spacing:3px;}
+  #roomChip {top:72px;}
+  @media(max-width:760px) {#baseBox{width:220px;top:65px}#roomChip{top:120px}#feed{top:145px;max-width:220px}.title{letter-spacing:4px}.card{min-width:320px;padding:16px}#hpBox{width:170px}#actionDock{bottom:90px}#actionDock button{font-size:9px;padding:8px}#goldBox .g{font-size:20px}#shop{top:145px;width:290px}#gameBrand{font-size:14px}.menuStory{font-size:13px}}
+</style>
+</head>
+<body>
+
+<canvas id="cv"></canvas>
+
+<!-- MENU -->
+<div id="menu" class="screen">
+  <div class="eyebrow">KARANTİNA BÖLGESİ / 07</div><div class="title">SON <span>ŞAFAK</span></div><div class="menuStory">Sokaklar düştü. Son sığınak hâlâ ayakta.<br>Bu gece, savunma hattı sensin.</div>
+  <div class="subtitle">Güneş doğana kadar. Savunmanı kur. Hayatta kal.</div>
+  <div class="card">
+    <h3>ÇAĞRI İŞARETİN</h3>
+    <input type="text" id="nameInput" maxlength="16" placeholder="Oyuncu adın" value="">
+    <button id="soloBtn">TEK BAŞINA HAYATTA KAL →</button><h3>VEYA EKİBİNİ TOPLA</h3>
+    <div class="row">
+      <button id="createBtn">Oda oluştur</button>
+    </div>
+    <div class="row">
+      <input type="text" id="codeInput" maxlength="5" placeholder="Oda kodu" style="text-transform:uppercase">
+      <button id="joinBtn" class="secondary">Katıl</button>
+    </div>
+    <div id="err"></div>
+    <div class="hint">
+      Kurduğun oda kodunu arkadaşlarına ver, onlar bu ekrandan katılsın.<br>
+      <kbd>WASD</kbd> hareket · fare nişan · <kbd>Tık</kbd> ateş · <kbd>R</kbd> şarjör<br>
+      <kbd>B</kbd> market · <kbd>1</kbd>-<kbd>5</kbd> silah seç · <kbd>Tab</kbd> skor
+    </div>
+  </div>
+</div>
+
+<!-- LOBBY -->
+<div id="lobby" class="screen hidden">
+  <div class="title" style="font-size:30px">LOBBY</div>
+  <div class="card" style="align-items:center">
+    <h3>Oda Kodu — arkadaşlarına ver</h3>
+    <div id="roomCodeBig">-----</div>
+    <div id="lobbyList"></div>
+    <button id="startBtn" class="green hidden">Oyunu Başlat</button>
+    <div id="lobbyWait" class="hint">Host başlatana kadar bekle…</div>
+    <button id="leaveBtn" class="secondary">Lobiden Çık</button>
+  </div>
+</div>
+
+<!-- HUD -->
+<div id="hud" class="hidden">
+  <div id="feed"></div><div id="gameBrand">SON ŞAFAK <span id="phaseLabel">HAZIRLIK</span></div><div id="actionDock"><button id="marketBtn" class="secondary">MARKET [B]</button><button id="waveBtn" class="secondary">DALGAYI BAŞLAT [BOŞLUK]</button><button id="muteBtn" class="secondary">SES AÇIK</button></div>
+  <div id="baseBox" class="hudPanel">
+    <div class="lbl">ÜS SAĞLIĞI</div>
+    <div class="bar"><i id="baseBar" style="width:100%; background:linear-gradient(90deg,#3fbf6f,#7be495)"></i><b id="baseTxt"></b></div>
+    <div id="waveTimer"></div>
+  </div>
+  <div id="goldBox" class="hudPanel">
+    <div class="g">$ <span id="goldVal">0</span></div>
+    <div class="wv">DALGA <b id="waveVal">0</b> · <b id="killVal">0</b> ÖLDÜRME</div>
+  </div>
+  <div id="hpBox" class="hudPanel">
+    <div class="bar" style="height:19px"><i id="hpBar" style="width:100%; background:linear-gradient(90deg,#e03e3e,#ff8a6b)"></i><b id="hpTxt"></b></div>
+    <div style="font-size:11.5px;color:#7f8fa3;margin-top:5px" id="reviveHint"></div>
+  </div>
+  <div id="ammoBox" class="hudPanel">
+    <div class="wn" id="weapName">Tabanca</div>
+    <div class="am" id="ammoVal"></div>
+  </div>
+  <div id="roomChip"></div>
+  <div id="centerMsg" class="hidden"></div>
+  <div id="buildHint" class="hidden"></div>
+  <div id="scoreboard" class="hudPanel hidden"></div>
+  <div id="shop" class="hidden"></div>
+  <div id="downOverlay" class="hidden">
+    <div class="t">YERE DÜŞTÜN</div>
+    <div class="s" id="downTxt"></div>
+  </div>
+</div>
+
+<!-- GAME OVER -->
+<div id="over" class="screen hidden">
+  <div class="title" style="font-size:36px">ÜS DÜŞTÜ</div>
+  <div class="subtitle" id="overWave"></div>
+  <div class="card" id="overStats"></div>
+  <button id="overBack" class="secondary">Ana Menü</button>
+</div>
+
+<script src="config.js"></script>
+<script src="game-core.js"></script>
+<script src="client.js"></script>
+</body>
+</html>

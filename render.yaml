@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: son-safak
+    runtime: node
+    plan: free
+    region: frankfurt
+    buildCommand: npm ci && npm test
+    startCommand: npm start
+    healthCheckPath: /_health
+    autoDeployTrigger: commit
+    envVars:
+      - key: NODE_ENV
+        value: production
