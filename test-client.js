@@ -41,3 +41,11 @@ console.log('PASS | closing construction, all new structure and enemy renderers'
 vm.runInContext(`for(const outfits of G.APPEARANCE.outfits) for(const heads of G.APPEARANCE.heads) for(const skins of G.APPEARANCE.skins) for(const angle of [0,Math.PI/2,Math.PI,-Math.PI/2]) for(const down of [false,true]) window.CharacterArt.draw(ctx,{outfits:outfits.id,heads:heads.id,skins:skins.id},angle,1.2,1,down);`,Object.assign(sandbox,{ctx}));
 assert.equal(depth,0,'All survivor outfits, headings and down poses balance canvas state');
 console.log('PASS | all survivor outfits, headwear, skin tones, aim directions and down poses');
+
+vm.runInContext("baseLevel=1;shopTab='weapons';renderShop();",sandbox);
+assert.ok(shopHtml.includes('ÜS SEVİYESİ YETERSİZ · 3'));
+vm.runInContext("baseLevel=3;completedNights=10;shopTab='base';renderShop();",sandbox);
+assert.ok(shopHtml.includes('Son Hat')&&shopHtml.includes('data-buy="baselevel"'));
+vm.runInContext("wallsLive=[{id:8,kind:'wall',x:pred.x+100,y:pred.y,lv:2,hp:200,mh:396}];shopTab='structures';renderShop();",sandbox);
+assert.ok(shopHtml.includes('YAPI #8 · SEVİYE 2')&&shopHtml.includes('data-structure="8"'));
+console.log('PASS | locked shop tiers, base progression and individual structure upgrade cards');

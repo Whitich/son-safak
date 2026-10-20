@@ -5,7 +5,7 @@ const C=require('./public/game-core');
 let count=0;
 const test=(name,fn)=>{fn();count++;console.log('PASS | '+name)};
 const ws=()=>({readyState:1,send(){}});
-function setup(n=1){const r=new Room('LAB');const p=Array.from({length:n},()=>r.addPlayer(ws(),'Test','#fff'));r.start();r.gold=100000;p.forEach(x=>{x.x=100;x.y=100});return {r,p:p[0],players:p}}
+function setup(n=1){const r=new Room('LAB');const p=Array.from({length:n},()=>r.addPlayer(ws(),'Test','#fff'));r.start();r.baseLevel=4;r.gold=100000;p.forEach(x=>{x.x=100;x.y=100});return {r,p:p[0],players:p}}
 function zombie(r,type,x,y){r.wave=Math.max(1,r.wave);r.queue=[type];r.spawnZombie();const z=r.zombies.at(-1);Object.assign(z,{x,y,atk:0});return z}
 try{
 test('Silah satın almak önceki silahı ve şarjörünü korur; kuşanmak ücretsiz mermi vermez',()=>{

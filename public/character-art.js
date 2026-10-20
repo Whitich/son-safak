@@ -63,12 +63,11 @@
       oval(fx*4,-20+fy*2,5,5,skin);box(-9,-15,5,7,color,2);box(4,-15,5,7,color,2);
     }
     if(ap.outfits==='hazmat') {box(-7,-22,14,5,'#8ce0cf',2);box(-4,-16,8,5,'#253c40',2);}
-    // Two hands hold a clearly separated, directional rifle.
+    // The two body hands are drawn above; the weapon never adds extra hands.
     ctx.save();ctx.translate(0,-3);ctx.rotate(aim);
-    box(1,2,15,6,color,3);oval(15,5,3.5,3.5,skin);
     box(5,-4,23,7,'#111c24',2);box(13,-5,12,3,'#657a7c',1);
     box(26,-3,12,3,'#b0bcb3',1);box(10,2,5,7,'#263b3e',1);
-    oval(22,3,3,3,skin);box(20,-6,4,2,'#b9caaf',0);
+    box(20,-6,4,2,'#b9caaf',0);
     ctx.restore();ctx.restore();
   }
   window.CharacterArt = {draw};

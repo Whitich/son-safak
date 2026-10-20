@@ -2,7 +2,7 @@
 const assert=require('assert/strict');const C=require('./public/game-core');const {Room,tickTimer}=require('./server');
 let passed=0;const test=(name,fn)=>{fn();passed++;console.log('PASS | '+name)};
 const fake=()=>({readyState:1,send(){}});
-function setup(){const r=new Room('CONTENT');const a=r.addPlayer(fake(),'A','#fff'),b=r.addPlayer(fake(),'B','#fff');r.start();r.gold=100000;return {r,a,b}}
+function setup(){const r=new Room('CONTENT');const a=r.addPlayer(fake(),'A','#fff'),b=r.addPlayer(fake(),'B','#fff');r.start();r.baseLevel=4;r.gold=100000;return {r,a,b}}
 function enemy(r,type,x,y){r.wave=1;r.queue=[type];r.spawnZombie();const z=r.zombies.at(-1);Object.assign(z,{x,y,hp:100000,maxHp:100000,speed:0});return z}
 try{
 test('Ortak para bir kez harcanır, geliştirme tüm ekibe uygulanır',()=>{const {r,a,b}=setup();const before=r.gold;r.buy('vitality',a.id);assert.equal(r.gold,before-C.UPGRADES.vitality.cost);assert.equal(a.maxHp,125);assert.equal(b.maxHp,125);r.buy('power',b.id);assert.equal(a.upgrades.power,1);assert.equal(a.upgrades,b.upgrades);});

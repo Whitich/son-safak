@@ -27,6 +27,7 @@
     $('zombieCatalog').classList.remove('hidden');$('closeCatalog').focus();
   }
   function closeCatalog(){$('menu').inert=false;$('zombieCatalog').classList.add('hidden');$('catalogBtn').focus();}
+  $('catalogBtn').textContent='ZOMBİ KATALOĞU · '+Object.keys(G.ZOMBIES).length+' TÜR';
   $('catalogBtn').onclick=openCatalog;$('closeCatalog').onclick=closeCatalog;
   document.addEventListener('keydown',e=>{if(e.code==='Escape'&&!$('zombieCatalog').classList.contains('hidden'))closeCatalog()});
   $('soundTestBtn').onclick=()=>window.GameAudio.test();

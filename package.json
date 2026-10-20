@@ -1,11 +1,11 @@
 {
   "name": "son-safak",
-  "version": "3.0.0",
+  "version": "4.0.0",
   "description": "Son Şafak — kooperatif zombi savunma oyunu",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node test-unit.js && node test-client.js && node test-overhaul.js && node test-content.js && node test-audio.js"
+    "test": "node test-unit.js && node test-client.js && node test-overhaul.js && node test-content.js && node test-audio.js && node test-progression.js && node test-endurance.js"
   },
   "engines": {
     "node": ">=18"

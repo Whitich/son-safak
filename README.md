@@ -1,4 +1,4 @@
-# Son Şafak 3.0
+# Son Şafak 4.0
 
 [Tarayıcıda oyna](https://son-safak.onrender.com/) — 1–8 kişilik kooperatif zombi savunması.
 
@@ -16,7 +16,7 @@ Duvarlar ve kapılar dost mermileri engellemez. Kapı oyunculara geçiş verirke
 
 Her başarılı gecenin sonunda en az bir oyuncu ayaktaysa tüm ekip tam can ve şarjörle geri döner. Üs otomatik onarılmaz. Üs düşerse veya herkes ölürse maç biter.
 
-10 düşman türü geceler ilerledikçe açılır. Zırhlı hasarı azaltır; Magnum ve keskin taret zırh deler. Yıkıcı yapılara 3 kat hasar verir. Şifacı yakın zombileri iyileştirir. Öfkeli yarı canın altında hızlanır. Her 4. gece koşucu akını, her 5. gece büyük düşman gelir. Can, hasar, hız ve toplam düşman sayısı gecelerle artar; ekip büyüklüğü de hesaba katılır.
+12 düşman türü geceler ilerledikçe açılır. Zırhlı hasarı azaltır; Magnum ve keskin taret zırh deler. Yıkıcı yapılara 3 kat hasar verir. Şifacı yakın zombileri iyileştirir. Öfkeli yarı canın altında hızlanır. Her 5. gece büyük düşman gelir. 10. geceden itibaren Kuşatmacı uzun menzilden taretleri avlar; 12. geceden itibaren Bozucu 260 menzilde taret atış aralığını iki katına çıkarır. Can, hasar, hız ve toplam düşman sayısı gecelerle artar; ekip büyüklüğü de hesaba katılır.
 
 ## Yerelde çalıştır
 
@@ -39,3 +39,22 @@ Tesla Yayı 160 menzilde 3 ek hedefe, her seferinde %25 azalan hasarla sıçrar.
 Ana menüde 6 kıyafet rengi, 3 kıyafet, 3 başlık ve 3 ten rengi seçilebilir. Görünüm kozmetiktir, kaydedilir ve diğer oyunculara iletilir. Zombi Kataloğu tüm türlerin istatistiklerini, açılış gecelerini, davranışlarını ve karşı taktiklerini gösterir.
 
 Ses Web Audio motoruyla ilk kullanıcı etkileşiminde açılır. Ana menüden Sesi dene ve ses seviyesi kontrolü, oyun içinden ses aç/kapat kullanılabilir. Tercihler tarayıcıda saklanır.
+
+## Üs ve yapı ilerleyişi (4.0)
+
+| Üs | Tamamlanan gece şartı | Maliyet | Can | Taret kapasitesi |
+| --- | --- | --- | --- | --- |
+| 1 — Sığınak | 0 | Başlangıç | 3000 | 4 |
+| 2 — Karakol | 3 | $650 | 3800 | 6 |
+| 3 — Kale | 6 | $1500 | 4700 | 8 |
+| 4 — Son Hat | 10 | $3000 | 5800 | 10 |
+
+Üs yalnızca hazırlıkta, sırayla ve ortak kasadan yükseltilir. Yeni kapasite kadar can eklenir; hasar bedavaya onarılmaz. Üs 2 taarruz, nişancı, kriyo ve alev silahlarını, çelik barikatı ve uzman taretleri açar. Üs 3 Tesla, lazer, LMG ve bomba atarı açar. Kilitli ürünler markette görünür ve gereken seviyeyi yazar.
+
+Market → Yapı Seviyeleri: en yakından sıralanan, 420 menzildeki bir yapıya ayrı seviye bas. Seviye sınırı üs seviyesidir, en fazla 4; mayın geliştirilemez. Seviye başına temel can +%65, taret/tel hasarı +%30, taret menzili +%5. Ortak yapı dayanıklılığı ve taret mühimmatı geliştirmeleri bunlarla birleşir. Yükseltme can oranını korur. Söküm, harcanan inşa ve seviye bedelinin cana göre %40'ını geri verir.
+
+Taretler yaklaşık 6 sn kesintisiz ateşten sonra 3 sn soğur. Bozucu yakınındayken atış aralığı ikiye katlanır; birden fazla bozucu etkiyi katlamaz. Isı, soğuma ve bozulma oyun içinde görünür. Yapı seviyeleri ve kapasite sunucuda doğrulanır.
+
+Düşman sayısı her gece ölçülü artar. İlerleyen gecelerde doğuş aralığı kısalır, saldırı hızı ve yavaşlatma direnci artar; geç oyunda can ve hasar büyümesi hızlanır. Sabit bir gece kaybetme kuralı yoktur. `node test-endurance.js` üç sabit rastgele akışta tam geliştirilmiş 10 taret / 40 çelik duvarı oyuncu ateşi ve tamir olmadan sınar: mevcut ayarlarda üçü de 20 gece tamamlayıp 21. gecede yenilir. Bu bir aktif oyuncu skor tahmini değildir.
+
+Skor, başlanmış geceyi değil tamamlanan geceleri sayar. Bu cihazda tek kişilik ve ekip rekorları ayrı kaydedilir; küresel liderlik tablosu değildir.

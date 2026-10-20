@@ -70,17 +70,17 @@
 
   function scaleZombie(type, wave, playerCount) {
     const base = ZOMBIES[type];
-    const hpMul = (1 + (wave - 1) * 0.17) * playerScale(playerCount);
-    const dmgMul = (1 + (wave - 1) * 0.09) * (1+.08*Math.max(0,playerCount-1));
+    const hpMul = (1 + (wave - 1) * 0.17 + Math.pow(Math.max(0,wave-10),2)*.028) * playerScale(playerCount);
+    const dmgMul = (1 + (wave - 1) * 0.09 + Math.pow(Math.max(0,wave-12),2)*.012) * (1+.08*Math.max(0,playerCount-1));
     const out = {
       type,
       name: base.name,
       hp: Math.round(base.hp * hpMul),
       dmg: +(base.dmg * dmgMul).toFixed(1),
-      speed: base.speed * (type === 'boss' ? 1 : Math.min(1.25, 1 + wave * 0.008)),
+      speed: base.speed * Math.min(1.55, 1 + wave * 0.012),
       r: base.r,
       money: base.money,
-      attackCd: base.attackCd,
+      attackCd: base.attackCd / Math.min(1.8,1+Math.max(0,wave-6)*.025),
       color: base.color,
       boss: !!base.boss
     };
@@ -99,7 +99,8 @@
     if(wave>=6) for(let j=0;j<Math.floor((wave-3)*.5);j++) list.push('sapper');
     if(wave>=7) for(let j=0;j<Math.max(1,Math.floor((wave-5)*.4));j++) list.push('healer');
     if(wave>=8) for(let j=0;j<Math.floor((wave-5)*.5);j++) list.push('berserker');
-    if(wave%4===0) for(let j=0;j<Math.floor(wave*1.2);j++) list.push('runner');
+    if(wave>=10) for(let j=0;j<1+Math.floor((wave-10)*.25);j++) list.push('mortar');
+    if(wave>=12) for(let j=0;j<1+Math.floor((wave-12)*.2);j++) list.push('disruptor');
     let i;
     for (i = 0; i < walkers; i++) list.push('walker');
     for (i = 0; i < runners; i++) list.push('runner');
@@ -118,7 +119,7 @@
   }
 
   function waveSpawnInterval(wave) {
-    return Math.max(0.35, 1.05 - wave * 0.04);
+    return Math.max(0.18, 1.05 - wave * 0.035);
   }
 
   function waveBonus(wave) {
@@ -149,7 +150,7 @@
   Object.assign(WEAPONS, {
     revolver:{name:'Magnum',cost:260,damage:44,rate:.48,speed:1050,spread:.018,pellets:1,mag:6,reload:1.5,range:730,pierce:1,auto:true,color:'#ffc885',desc:'Zırhı delen ağır tabanca',armorPierce:true},
     carbine:{name:'Taarruz Tüfeği',cost:850,damage:24,rate:.14,speed:1050,spread:.035,pellets:1,mag:30,reload:1.7,range:760,pierce:0,auto:true,color:'#87d9ca',desc:'Orta menzil · isabetli otomatik ateş'},
-    frost:{name:'Kriyo Tüfeği',cost:1100,damage:17,rate:.18,speed:820,spread:.04,pellets:1,mag:24,reload:1.8,range:650,pierce:0,auto:true,color:'#8fe8ff',slow:2.5,desc:'Vurduğu zombiyi %50 yavaşlatır'},
+    frost:{name:'Kriyo Tüfeği',cost:1100,damage:17,rate:.18,speed:820,spread:.04,pellets:1,mag:24,reload:1.8,range:650,pierce:0,auto:true,color:'#8fe8ff',slow:2.5,desc:'Zombileri yavaşlatır; geç gecelerde etkisine direnç gelişir'},
     launcher:{name:'Bomba Atar',cost:1900,damage:105,rate:1.1,speed:540,spread:.02,pellets:1,mag:4,reload:2.6,range:720,pierce:0,auto:true,color:'#ffb76b',splash:100,desc:'100 birim patlama · dostlara zarar vermez'}
   });
   WEAPON_ORDER.splice(1,0,'revolver'); WEAPON_ORDER.splice(3,0,'carbine'); WEAPON_ORDER.push('frost','launcher');
@@ -158,6 +159,8 @@
     armored:{name:'Zırhlı',hp:145,dmg:15,speed:43,r:20,money:34,attackCd:1,color:'#829eb4',armor:.45},
     sapper:{name:'Yıkıcı',hp:100,dmg:18,speed:68,r:17,money:30,attackCd:1.1,color:'#e5a55e',siege:3},
     healer:{name:'Şifacı',hp:125,dmg:8,speed:45,r:18,money:45,attackCd:1.3,color:'#62dbbd',healAura:18},
+    mortar:{name:'Kuşatmacı',hp:170,dmg:24,speed:39,r:19,money:50,attackCd:3.5,range:510,color:'#e5a879',siege:2.2,artillery:true},
+    disruptor:{name:'Bozucu',hp:220,dmg:14,speed:55,r:19,money:55,attackCd:1.1,color:'#b991e2',disrupt:260},
     berserker:{name:'Öfkeli',hp:180,dmg:22,speed:72,r:21,money:45,attackCd:.8,color:'#d36b9c',rage:true}
   });
   BUILD.wall.desc='Mermilerin üzerinden geçer · zombileri durdurur';
@@ -170,7 +173,7 @@
     spikes:{name:'Dikenli Tel',cost:65,hp:180,w:64,h:64,trap:true,slow:.5,dps:14,desc:'Geçen zombiyi %50 yavaşlatır ve yaralar'},
     mine:{name:'Yakınlık Mayını',cost:90,hp:1,w:32,h:32,trap:true,splash:110,damage:220,desc:'Yaklaşan sürüye 220 alan hasarı · tek kullanım'},
     sniperTurret:{name:'Keskin Taret',cost:700,hp:260,w:46,h:46,turret:true,range:620,rate:1.15,damage:95,bulletSpeed:1200,pierce:2,armorPierce:true,desc:'Uzun menzil · zırh delici · 3 hedef'},
-    frostTurret:{name:'Kriyo Taret',cost:500,hp:260,w:46,h:46,turret:true,range:290,rate:.45,damage:12,bulletSpeed:700,slow:2.5,desc:'Yaklaşanları %50 yavaşlatır'}
+    frostTurret:{name:'Kriyo Taret',cost:500,hp:260,w:46,h:46,turret:true,range:290,rate:.45,damage:12,bulletSpeed:700,slow:2.5,desc:'Yaklaşanları yavaşlatır; geç gecelerde etkisine direnç gelişir'}
   });
   SHOP.medkit.cost=45;
   SHOP.wallrepair.cost=15; SHOP.wallrepair.heal=160; SHOP.wallrepair.name='Yapı Tamiri';
@@ -208,7 +211,7 @@
   }
   const ZOMBIE_GUIDE={
     walker:{night:1,role:'Temel tehdit',behavior:'Sığınağa yürür; yakındaki oyuncuya döner. Vurulursa saldıranı takip eder.',counter:'Mesafeni koru. Tabanca ve sıradan barikatlar yeterlidir.'},
-    runner:{night:2,role:'Hızlı avcı',behavior:'Yüksek hızla arayı kapatır. Her 4. gece koşucu akını gelir.',counter:'Kriyo, dikenli tel ve SMG ile yavaşlatıp temizle.'},
+    runner:{night:2,role:'Hızlı avcı',behavior:'Yüksek hızla arayı kapatır. İlerleyen gecelerde sayısı ve saldırı hızı artar.',counter:'Kriyo, dikenli tel ve SMG ile yavaşlatıp temizle.'},
     swarm:{night:3,role:'Kalabalık saldırısı',behavior:'Küçük, hızlı ve az canlıdır; sayı üstünlüğüyle çevreler.',counter:'Tesla sıçraması, alev, pompalı veya mayın kullan.'},
     spitter:{night:4,role:'Menzilli saldırgan',behavior:'Uzaktan asit atar; yaklaşırsan geri çekilir. Asit oyuncuları, yapıları ve sığınağı yaralar.',counter:'Asitten yana kaçarak kurtul. Barikat asidi durdurur; uzun menzilli silahla avla.'},
     armored:{night:4,role:'Zırhlı öncü',behavior:'Normal vuruşların hasarını %45 azaltır; yavaştır ama dayanıklıdır.',counter:'Magnum, Odak Lazeri, Tesla veya Keskin Taret zırhı yok sayar.'},
@@ -216,9 +219,24 @@
     sapper:{night:6,role:'Yapı yıkıcı',behavior:'Oyuncular yerine sığınağa ilerler. Önündeki yapılara 3 kat hasar verir.',counter:'Barikatlara ulaşmadan öldür. Kriyo ve Keskin Taret güçlü karşılıklardır.'},
     healer:{night:7,role:'Destekçi',behavior:'160 menzildeki diğer zombilere saniyede 18 can geri kazandırır; kendini iyileştirmez.',counter:'Önce şifacıyı indir. Alan hasarıyla desteklediği grubu birlikte temizle.'},
     berserker:{night:8,role:'Öfkeli avcı',behavior:'Canı yarının altına düşünce %70 hızlanır.',counter:'Yarı cana düşürdükten sonra ateşi kesme; kriyo ile kaçış aralığını koru.'},
+    mortar:{night:10,role:'Taret avcısı',behavior:'510 menzilden öncelikle taretlere asit atar. Duvarlar atışını engeller. Oyuncularla oyalanmaz.',counter:'Taret menzili dışında bekleyebilir. Silahınla yaklaş veya uzun menzilli Keskin Taret kullan.'},
+    disruptor:{night:12,role:'Savunma bozucu',behavior:'260 menzildeki taretlerin atış aralığını iki katına çıkarır. Etkiler üst üste birikmez.',counter:'Mor etki alanına dikkat et; bozucuyu öncelikli hedef yap.'},
     boss:{night:5,role:'Gece lideri',behavior:'Her 5. gecede gelir. Çok yüksek canı ve yakın dövüş hasarı vardır.',counter:'Aynı hedefte lazer odağı biriktir. Ekibin diğer üyeleri küçük zombileri temizlesin.'}
   };
-  function nightInfo(n){return {name:n%5===0?'DEV AVCISI':n%4===0?'KOŞUCU AKINI':n>=8?'MUTASYON':n>=4?'KUŞATMA':'İLK TEMAS',boss:n%5===0,types:[...new Set(waveComp(n))].sort()};}
+  function nightInfo(n){return {name:n%5===0?'DEV AVCISI':n>=12?'ELEKTRONİK KUŞATMA':n>=10?'TARET AVCILARI':n>=8?'MUTASYON':n>=4?'KUŞATMA':'İLK TEMAS',boss:n%5===0,types:[...new Set(waveComp(n))].sort(),desc:n>=12?'Taret bozma · artan saldırı hızı · yavaşlatma direnci':n>=10?'Uzun menzilli kuşatmacılar taretleri avlar':n>=6?'Yıkıcı ve destekçi birlikleri öncelikle avla':'İlk savunmanı kur; sonraki gecelere yatırım yap'};}
+  const BASE_LEVELS=[
+    {name:'Sığınak',cost:0,night:0,hp:3000,turrets:4,desc:'Temel silahlar ve savunmalar'},
+    {name:'Karakol',cost:650,night:3,hp:3800,turrets:6,desc:'Taarruz, nişancı, kriyo, alev ve uzman taretler'},
+    {name:'Kale',cost:1500,night:6,hp:4700,turrets:8,desc:'Tesla, lazer, LMG ve bomba atar'},
+    {name:'Son Hat',cost:3000,night:10,hp:5800,turrets:10,desc:'Tüm yapıların 4. seviyesi; en yüksek savunma kapasitesi'}
+  ];
+  for(const id of ['carbine','rifle','frost','flame'])WEAPONS[id].baseLevel=2;
+  for(const id of ['lmg','launcher','laser','arc'])WEAPONS[id].baseLevel=3;
+  for(const id of ['sniperTurret','frostTurret','reinforced'])BUILD[id].baseLevel=2;
+  function structureStats(kind,level=1,fortification=0){const d=BUILD[kind];return {hp:Math.round(d.hp*(1+.65*(level-1))*(1+.2*fortification)),damage:(d.damage||d.dps||0)*(1+.3*(level-1)),range:(d.range||0)*(1+.05*(level-1))};}
+  function structureUpgradeCost(kind,level){return Math.ceil(BUILD[kind].cost*.6*level);}
+  function slowFactor(wave){return .5+Math.min(.3,Math.max(0,wave-10)*.012);}
+
   const startingGold=n=>550+200*Math.max(0,n-1);
   const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -241,7 +259,7 @@
   }
 
   return {
-    WORLD, BASE, PLAYER, WEAPONS, WEAPON_ORDER, ZOMBIES, BUILD, SHOP, UPGRADES, nightInfo, startingGold, newUpgrades, laserDamage, APPEARANCE, sanitizeAppearance, ZOMBIE_GUIDE,
+    BASE_LEVELS, structureStats, structureUpgradeCost, slowFactor, WORLD, BASE, PLAYER, WEAPONS, WEAPON_ORDER, ZOMBIES, BUILD, SHOP, UPGRADES, nightInfo, startingGold, newUpgrades, laserDamage, APPEARANCE, sanitizeAppearance, ZOMBIE_GUIDE,
     MAX_PLAYERS, INTERMISSION, PLAYER_SCALE_STEP,
     playerScale, scaleZombie, waveComp, waveSpawnInterval, waveBonus,
     dist, clamp, rand, roomCode, spawnEdgePoint

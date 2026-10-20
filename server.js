@@ -6,7 +6,7 @@ const { WebSocketServer } = require('ws');
 const C = require('./public/game-core.js');
 
 const PORT = process.env.PORT || 3000;
-const VERSION = '3.0.0';
+const VERSION = '4.0.0';
 const TICK = 1 / 30;
 
 const app = express();
@@ -37,6 +37,9 @@ class Room {
     this.state = 'lobby';
     this.phase = 'prep';
     this.wave = 0;
+    this.completed = 0;
+    this.baseLevel = 1;
+    this.nextWid = 1;
     this.timer = 45;
     this.gold = 0;
     this.upgrades=C.newUpgrades();
@@ -100,10 +103,13 @@ class Room {
     this.state = 'playing';
     this.phase = 'prep';
     this.wave = 0;
+    this.completed = 0;
+    this.baseLevel = 1;
+    this.nextWid = 1;
     this.timer = 45;
     this.gold = C.startingGold(this.players.size);
     this.upgrades=C.newUpgrades();
-    this.base.hp = this.base.maxHp;
+    this.base.hp = this.base.maxHp = C.BASE.hp;
     this.walls = [];
     this.zombies = [];
     this.bullets = [];
@@ -127,7 +133,8 @@ class Room {
     const def = Object.hasOwn(C.BUILD,kind)?C.BUILD[kind]:null;
     const builder = this.players.get(playerId);
     if (!def || !builder || builder.state !== 'alive' || this.state !== 'playing') return false;
-    if (this.gold < def.cost) return false;
+    if (this.gold < def.cost || this.baseLevel < (def.baseLevel||1)) return false;
+    if(def.turret && this.walls.filter(w=>C.BUILD[w.kind].turret).length >= C.BASE_LEVELS[this.baseLevel-1].turrets)return false;
     x = Math.round(x); y = Math.round(y);
     if (x < def.w / 2 + 10 || y < def.h / 2 + 10 || x > C.WORLD.w - def.w / 2 - 10 || y > C.WORLD.h - def.h / 2 - 10) return false;
     if (!Number.isFinite(x) || !Number.isFinite(y)) return false;
@@ -146,9 +153,9 @@ class Room {
     this.gold -= def.cost;
     const wall = {
       x, y, w: def.w, h: def.h, hp: def.hp, maxHp: def.hp,
-      kind, turretT: 0, angle: 0
+      id:this.nextWid++, level:1, heat:0, cool:0, kind, turretT: 0, angle: 0
     };
-    if(kind!=='mine'){wall.maxHp=Math.round(def.hp*(1+.2*this.upgrades.fortification));wall.hp=wall.maxHp;}
+    if(kind!=='mine'){wall.maxHp=C.structureStats(kind,1,this.upgrades.fortification).hp;wall.hp=wall.maxHp;}
     if (def.turret) wall.range = def.range;
     this.walls.push(wall);
     this.events.push({ e: 'bld', x, y, k: kind });
@@ -159,9 +166,18 @@ class Room {
     const p = this.players.get(playerId);
     if (!p || p.state !== 'alive') return false;
     if (this.state !== 'playing') return false;
+    if(item==='baselevel'){
+      const next=C.BASE_LEVELS[this.baseLevel];
+      if(!next||this.phase!=='prep'||this.completed<next.night||this.gold<next.cost)return false;
+      this.gold-=next.cost;this.baseLevel++;
+      // Add only the extra capacity; a damaged base still needs repairs.
+      this.base.hp+=next.hp-this.base.maxHp;this.base.maxHp=next.hp;
+      this.events.push({e:'teamUpgrade',item:'Üs: '+next.name,level:this.baseLevel});return true;
+    }
     if (Object.hasOwn(C.WEAPONS,item)) {
       const def = C.WEAPONS[item];
       if (p.owned.includes(item)) return this.equip(p,item);
+      if(this.baseLevel<(def.baseLevel||1))return false;
       if (this.gold < def.cost) return false;
       this.gold -= def.cost;
       p.owned.push(item);
@@ -177,7 +193,7 @@ class Room {
         ally.upgrades=this.upgrades;
         if(item==='vitality'){ally.maxHp=C.PLAYER.hp+25*this.upgrades.vitality;if(ally.state==='alive')ally.hp=Math.min(ally.maxHp,ally.hp+25);}
       }
-      if(item==='fortification')for(const w of this.walls){if(w.kind==='mine')continue;const frac=w.hp/w.maxHp;w.maxHp=Math.round(C.BUILD[w.kind].hp*(1+.2*this.upgrades.fortification));w.hp=w.maxHp*frac;}
+      if(item==='fortification')for(const w of this.walls){if(w.kind==='mine')continue;const frac=w.hp/w.maxHp;w.maxHp=C.structureStats(w.kind,w.level||1,this.upgrades.fortification).hp;w.hp=w.maxHp*frac;}
       this.events.push({e:'teamUpgrade',item:def.name,level:level+1});return true;
     }
     const def = Object.hasOwn(C.SHOP,item)?C.SHOP[item]:null;
@@ -213,6 +229,18 @@ class Room {
     return true;
   }
 
+  upgradeStructure(id,playerId){
+    const p=this.players.get(playerId),w=this.walls.find(w=>w.id===id);
+    if(this.state!=='playing'||!p||p.state!=='alive'||!w||w.kind==='mine'||w.hp<=0||Math.hypot(p.x-w.x,p.y-w.y)>420)return false;
+    const level=w.level||1;
+    if(level>=4||level>=this.baseLevel)return false;
+    const cost=C.structureUpgradeCost(w.kind,level);if(this.gold<cost)return false;
+    this.gold-=cost;const fraction=w.hp/w.maxHp;w.level=level+1;
+    const stats=C.structureStats(w.kind,w.level,this.upgrades.fortification);
+    w.maxHp=stats.hp;w.hp=stats.hp*fraction;if(C.BUILD[w.kind].turret)w.range=stats.range;
+    this.events.push({e:'structureUpgrade',item:C.BUILD[w.kind].name,id:w.id,level:w.level});return true;
+  }
+
   equip(p, weapon) {
     if(!p || p.state!=='alive' || !p.owned.includes(weapon) || !Object.hasOwn(C.WEAPONS,weapon)) return false;
     if(p.weapon===weapon) return true;
@@ -229,7 +257,8 @@ class Room {
     if(!p || p.state!=='alive' || this.state!=='playing' || !Number.isFinite(x)||!Number.isFinite(y)) return false;
     const w=this.walls.find(w=>Math.abs(w.x-x)<w.w/2+12 && Math.abs(w.y-y)<w.h/2+12);
     if(!w || Math.hypot(p.x-w.x,p.y-w.y)>300) return false;
-    const refund=Math.floor(C.BUILD[w.kind].cost*.4*w.hp/w.maxHp);
+    const invested=C.BUILD[w.kind].cost+Array.from({length:(w.level||1)-1},(_,i)=>C.structureUpgradeCost(w.kind,i+1)).reduce((a,b)=>a+b,0);
+    const refund=Math.floor(invested*.4*w.hp/w.maxHp);
     this.gold+=refund;this.removeWall(w);send(p.ws,{t:'notice',m:'Yapı söküldü. Ortak kasaya +$'+refund});return true;
   }
 
@@ -294,6 +323,7 @@ class Room {
       } else if (this.zombies.length === 0 && [...this.players.values()].some(p => p.state === 'alive') && this.base.hp > 0) {
         const bonus = C.waveBonus(this.wave);
         this.gold += bonus;
+        this.completed=this.wave;
         this.phase = 'prep';
         this.timer = C.INTERMISSION;
         this.acids = []; this.bullets = [];
@@ -517,6 +547,8 @@ class Room {
     for (const w of this.walls) {
       const def=C.BUILD[w.kind];
       if (!def.turret) continue;
+      w.jammed=this.zombies.some(z=>z.hp>0&&C.ZOMBIES[z.type].disrupt&&Math.hypot(z.x-w.x,z.y-w.y)<C.ZOMBIES[z.type].disrupt);
+      if(w.cool>0){w.cool=Math.max(0,w.cool-dt);if(!w.cool)w.heat=0;continue;}
       w.turretT -= dt;
       if (w.turretT > 0) continue;
       let best = null, bd = w.range;
@@ -524,15 +556,17 @@ class Room {
         const d = Math.hypot(z.x - w.x, z.y - w.y);
         if (d < bd) { bd = d; best = z; }
       }
-      if (!best) continue;
+      if (!best) {w.heat=Math.max(0,(w.heat||0)-dt*2);continue;}
       // Each turret uses its own range, fire rate and projectile effects.
-      w.turretT = def.rate;
+      w.turretT = def.rate*(w.jammed?2:1);
+      w.heat=(w.heat||0)+def.rate;if(w.heat>=6)w.cool=3;
+      const stats=C.structureStats(w.kind,w.level||1,this.upgrades.fortification);
       const a = Math.atan2(best.y - w.y, best.x - w.x);
       w.angle = a;
       this.bullets.push({
         x: w.x + Math.cos(a) * 26, y: w.y + Math.sin(a) * 26,
         vx: Math.cos(a) * def.bulletSpeed, vy: Math.sin(a) * def.bulletSpeed,
-        dmg: def.damage*(1+.15*this.upgrades.sentry), pierce: def.pierce||0, slow:def.slow, armorPierce:def.armorPierce, life: def.range / def.bulletSpeed,
+        dmg: stats.damage*(1+.15*this.upgrades.sentry), pierce: def.pierce||0, slow:def.slow, armorPierce:def.armorPierce, life: w.range / def.bulletSpeed,
         owner: -1, color:def.slow?'#8fe8ff':def.armorPierce?'#d4aeff':'#a8ffcf', a
       });
     }
@@ -544,7 +578,7 @@ class Room {
       const def=C.BUILD[w.kind];if(!def.trap)continue;
       if(def.splash){if(this.zombies.some(z=>z.hp>0&&Math.hypot(z.x-w.x,z.y-w.y)<65)){this.blast(w.x,w.y,def.splash,def.damage,0);this.removeWall(w);}continue;}
       let touched=false;
-      for(const z of this.zombies)if(z.hp>0&&circleRect(z.x,z.y,z.r,w.x-w.w/2,w.y-w.h/2,w.w,w.h)){z.slowT=.3;this.hitZombie(z,def.dps*dt,0);touched=true;}
+      for(const z of this.zombies)if(z.hp>0&&circleRect(z.x,z.y,z.r,w.x-w.w/2,w.y-w.h/2,w.w,w.h)){z.slowT=.3;this.hitZombie(z,C.structureStats(w.kind,w.level||1).damage*dt,0);touched=true;}
       if(touched){w.hp-=8*dt;if(w.hp<=0)this.removeWall(w);}
     }
     for (const z of this.zombies) {
@@ -571,10 +605,18 @@ class Room {
 
       if(zd.siege)target=null;
       const isSpit = z.range > 0;
-      const aimX = target ? target.x : this.base.x;
-      const aimY = target ? target.y : this.base.y;
+      let siegeTarget=null;
+      if(zd.artillery){
+        siegeTarget=this.walls.filter(w=>C.BUILD[w.kind].turret&&w.hp>0).sort((a,b)=>Math.hypot(a.x-z.x,a.y-z.y)-Math.hypot(b.x-z.x,b.y-z.y))[0]||this.base;
+      }
+      const aimX = siegeTarget ? siegeTarget.x : target ? target.x : this.base.x;
+      const aimY = siegeTarget ? siegeTarget.y : target ? target.y : this.base.y;
       let dist = Math.hypot(aimX - z.x, aimY - z.y);
 
+      if(zd.artillery&&dist<z.range){
+        if(z.atk<=0){z.atk=z.attackCd;const a=Math.atan2(aimY-z.y,aimX-z.x);this.acids.push({x:z.x,y:z.y,vx:Math.cos(a)*300,vy:Math.sin(a)*300,dmg:z.dmg*zd.siege,life:2.4});}
+        continue;
+      }
       if (isSpit && target && dist < z.range && dist > 150 && z.atk <= 0) {
         z.atk = z.attackCd;
         const lead = Math.min(0.6, dist / 300);
@@ -602,7 +644,7 @@ class Room {
       }
       if (isSpit && target && dist < 150) {
         const a = Math.atan2(z.y - target.y, z.x - target.x);
-        this.moveZombie(z, z.x + Math.cos(a) * z.speed * (z.slowT>0?.5:1) * (zd.rage&&z.hp<z.maxHp*.5?1.7:1) * dt, z.y + Math.sin(a) * z.speed * (z.slowT>0?.5:1) * (zd.rage&&z.hp<z.maxHp*.5?1.7:1) * dt, dt);
+        this.moveZombie(z, z.x + Math.cos(a) * z.speed * (z.slowT>0?C.slowFactor(z.wave):1) * (zd.rage&&z.hp<z.maxHp*.5?1.7:1) * dt, z.y + Math.sin(a) * z.speed * (z.slowT>0?C.slowFactor(z.wave):1) * (zd.rage&&z.hp<z.maxHp*.5?1.7:1) * dt, dt);
         continue;
       }
       if (!target && Math.hypot(z.x - this.base.x, z.y - this.base.y) < this.base.r + z.r + 6) {
@@ -615,8 +657,8 @@ class Room {
       }
 
       const d = Math.hypot(aimX - z.x, aimY - z.y) || 1;
-      const nx = z.x + (aimX - z.x) / d * z.speed * (z.slowT>0?.5:1) * (zd.rage&&z.hp<z.maxHp*.5?1.7:1) * dt;
-      const ny = z.y + (aimY - z.y) / d * z.speed * (z.slowT>0?.5:1) * (zd.rage&&z.hp<z.maxHp*.5?1.7:1) * dt;
+      const nx = z.x + (aimX - z.x) / d * z.speed * (z.slowT>0?C.slowFactor(z.wave):1) * (zd.rage&&z.hp<z.maxHp*.5?1.7:1) * dt;
+      const ny = z.y + (aimY - z.y) / d * z.speed * (z.slowT>0?C.slowFactor(z.wave):1) * (zd.rage&&z.hp<z.maxHp*.5?1.7:1) * dt;
       const blocked = this.moveZombie(z, nx, ny, dt);
       if (blocked && blocked !== 'base') {
         if (z.atk <= 0) {
@@ -650,7 +692,7 @@ class Room {
       stats.push({ id: p.id, name: p.name, kills: p.kills, color: p.color });
     }
     stats.sort((a, b) => b.kills - a.kills);
-    this.broadcast({ t: 'over', wave: this.wave, host: this.hostId, stats });
+    this.broadcast({ t: 'over', completed:this.completed, wave: this.wave, host: this.hostId, stats });
   }
 
   broadcast(msg) {
@@ -677,13 +719,13 @@ class Room {
     for (const b of this.bullets) B.push({ x: +b.x.toFixed(1), y: +b.y.toFixed(1), a: +b.a.toFixed(2), o: b.owner, v:Math.round(Math.hypot(b.vx,b.vy)), c:b.color });
     for (const a of this.acids) A.push({ x: +a.x.toFixed(1), y: +a.y.toFixed(1) });
     for (const w of this.walls) {
-      L.push({ x: w.x, y: w.y, w: w.w, h: w.h, hp: Math.max(0, Math.round(w.hp)), mh: w.maxHp, kind:w.kind, k: C.BUILD[w.kind].turret ? 1 : 0, a: +((w.angle || 0).toFixed(2)) });
+      L.push({ id:w.id,lv:w.level||1,heat:+((w.heat||0)/6).toFixed(2),cool:+(w.cool||0).toFixed(1),jam:!!w.jammed,x: w.x, y: w.y, w: w.w, h: w.h, hp: Math.max(0, Math.round(w.hp)), mh: w.maxHp, kind:w.kind, k: C.BUILD[w.kind].turret ? 1 : 0, a: +((w.angle || 0).toFixed(2)) });
     }
     const ev = this.events;
     this.events = [];
     return {
       t: 's', q:this.queue.length, p: this.phase, w: this.wave, ti: +Math.max(0, this.timer).toFixed(1),
-      g: Math.floor(this.gold), bh: Math.max(0, Math.round(this.base.hp)), bmh: this.base.maxHp,
+      bl:this.baseLevel,cn:this.completed,g: Math.floor(this.gold), bh: Math.max(0, Math.round(this.base.hp)), bmh: this.base.maxHp,
       P, Z, B, A, L, ev, st: this.state
     };
   }
@@ -739,7 +781,8 @@ wss.on('connection', ws => {
         p.rel = !!msg.r;
         break;
       }
-      case 'buy': if (!room.buy(String(msg.item), id)) send(ws, {t:'notice', m:'Satın alınamadı: ortak para yetersiz, karakter ayakta değil veya bu desteğe şu an ihtiyaç yok.'}); break;
+      case 'structureUpgrade': if(!room.upgradeStructure(msg.id,id))send(ws,{t:'notice',m:'Yapı geliştirilemedi: üs seviyesi, ortak para, 420 menzil ve yapı sınırını kontrol et.'}); break;
+      case 'buy': if (!room.buy(String(msg.item), id)) send(ws, {t:'notice', m:'Satın alınamadı: üs seviyesi / tamamlanan gece şartı, ortak para veya destek ihtiyacını kontrol et. Üs yalnızca hazırlıkta yükseltilir.'}); break;
       case 'equip': room.equip(room.players.get(id),String(msg.w));break;
       case 'salvage': if(!room.salvage(+msg.x,+msg.y,id))send(ws,{t:'notice',m:'Sökmek için yapıya yaklaş ve imleci üzerine getir (300 menzil).'});break;
       case 'build': { const ok = room.build(String(msg.k), +msg.x, +msg.y, id); send(ws, {t:'buildResult', ok}); break; }

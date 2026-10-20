@@ -24,6 +24,7 @@ let pred = { x: G.BASE.x, y: G.BASE.y };
 let zFace = new Map();
 let myWeapon = 'pistol', myAmmo = 14, myReload = 0, myState = 'alive', ownedWeaps = ['pistol'];
 let myBleed = 0, myRevive = 0;
+let baseLevel=1,completedNights=0;
 let gold = 0, waveN = 0, phase = 'prep', phaseT = 0, baseHp = 0, baseMax = 1;
 let lastSend = 0, fireSent = false, relSent = false;
 let lastShootSfx = 0, centerTimer = 0;
@@ -207,7 +208,7 @@ function onSnapshot(m) {
   latestAt = snapNextAt;
 
   gold = m.g; waveN = m.w; phase = m.p; phaseT = m.ti;
-  baseHp = m.bh; baseMax = m.bmh;
+  baseHp = m.bh; baseMax = m.bmh; baseLevel=m.bl||1;completedNights=m.cn||0;
   wallsLive = m.L; zombiesLive = m.Z; playersLive = m.P;
 
   const me = m.P.find(p => p.i === myId);
@@ -246,15 +247,18 @@ function processEvents(evs) {
         for (let i = 0; i < 14; i++) spark(e.x, e.y, '#9fb2c8');
         addDecal(e.x, e.y, 9);
         break;
+      case 'structureUpgrade':SFX.buy();feed(esc(e.item)+' #'+e.id+' → Seviye '+e.level,'#b8dca2');break;
       case 'teamUpgrade':SFX.buy();feed('Ekip geliştirmesi: '+esc(e.item)+' · Seviye '+e.level+' · Herkese uygulandı','#b8dca2');break;
       case 'arc':arcs.push({...e,t:.18});break;
       case 'blast':
         shake=Math.max(shake,5);for(let i=0;i<20;i++){const a=Math.random()*Math.PI*2;particles.push({x:e.x,y:e.y,vx:Math.cos(a)*220,vy:Math.sin(a)*220,c:'#ffd189',r:4,life:.45,t:0});}SFX.wallBreak();break;
       case 'ws':
         SFX.wave();
-        centerMsg('GECE ' + e.n, 'Hayatta kal!', 2.6);
+        centerMsg('GECE ' + e.n, G.nightInfo(e.n).desc, 3.5);
         break;
       case 'wc':
+        if(G.BASE_LEVELS.some(d=>d.night===e.n))feed('Yeni üs kademesi açılabilir! Market → Üs Seviyesi.','#d8d19b');
+        try{const key='ss_record_'+(playersLive.length===1?'solo':'team');localStorage.setItem(key,String(Math.max(e.n,Number(localStorage.getItem(key))||0)));}catch{}
         SFX.clear();
         centerMsg('GECE ATLATILDI!', 'Herkes canlandı · Tam can · +' + e.b + '$', 3.5);
         break;
@@ -381,38 +385,58 @@ function cycleWeapon(direction){
 }
 cv.addEventListener('wheel',e=>{if(inGame&&!shopOpen){e.preventDefault();cycleWeapon(e.deltaY>0?1:-1);}},{passive:false});
 function renderShop(){
-  const signature=JSON.stringify([shopTab,gold,myWeapon,ownedWeaps,myUpgrades,myState]);
+  const signature=JSON.stringify([shopTab,gold,myWeapon,ownedWeaps,myUpgrades,myState,baseLevel,completedNights,phase,wallsLive.map(w=>[w.id,w.lv,Math.hypot(w.x-pred.x,w.y-pred.y)<=420])]);
   if(signature===shopSignature)return;shopSignature=signature;
-  const tabs=[['weapons','CEPHANELİK'],['build','SAVUNMA'],['support','DESTEK'],['upgrades','GELİŞTİRME']];
+  const tabs=[['weapons','CEPHANELİK'],['build','SAVUNMA'],['support','DESTEK'],['upgrades','EKİP'],['base','ÜS SEVİYESİ'],['structures','YAPI SEVİYELERİ']];
   let h='<div class="shopHeader"><div><small>SAHA İKMAL NOKTASI</small><h2>Hazırlan. Güçlen. Dayan.</h2></div><div class="shopBank">ORTAK KASA<strong>$'+gold+'</strong></div><button data-close="1" class="shopClose" aria-label="Marketi kapat">✕</button></div>';
   h+='<nav class="shopTabs" aria-label="Market kategorileri">'+tabs.map(([id,n])=>'<button data-tab="'+id+'" class="'+(id===shopTab?'active':'')+'">'+n+'</button>').join('')+'</nav>';
-  const hints={weapons:'Satın aldığın silahlar sende kalır. 1–9 / 0, Q / E, fare tekerleği veya alttaki cephanelikle değiştir. Yedek mermi sınırsız; şarjörünü R ile doldur.',build:'Mermilerin tüm dost yapıların üzerinden geçer. Kapı oyunculara açık, zombilere kapalıdır. Yapıyı seçip zemine bir kez tıkla; B / Esc iptal eder.',support:'Tamir, yeni yapıdan daha ucuzdur. Hasarlı en yakın yapıyı onarır (420 menzil). Her gece sonunda bir kişi ayaktaysa herkes tam canla döner.',upgrades:'Ekip geliştirmeleri ortak kasadan bir kez alınır, odadaki HERKESE uygulanır. Sonradan katılanlar da aynı seviyeyi alır. Her yeni seviyenin bedeli artar.'};
-  h+='<p class="shopIntro">'+hints[shopTab]+'</p><div class="shopGrid">';
+  const hints={weapons:'Satın aldığın silahlar sende kalır. 1–9 / 0, Q / E, fare tekerleği veya alttaki cephanelikle değiştir. Yedek mermi sınırsız; şarjörünü R ile doldur.',build:'Mermilerin tüm dost yapıların üzerinden geçer. Kapı oyunculara açık, zombilere kapalıdır. Yapıyı seçip zemine bir kez tıkla; B / Esc iptal eder.',support:'Tamir, yeni yapıdan daha ucuzdur. Hasarlı en yakın yapıyı onarır (420 menzil). Her gece sonunda bir kişi ayaktaysa herkes tam canla döner.',base:'Üs seviyeleri tüm ekibe ortaktır. Yalnızca hazırlıkta yükseltilir. Gerekli geceleri tamamla; yeni silahları, yapı seviyelerini ve taret kapasitesini aç.',structures:'Yakınındaki yapıya tek tek seviye bas. 420 menzil gerekir; üst sınır üs seviyendir (en çok 4). Geliştirme hasar oranını korur; tamir ayrı yapılır. Mayın tek kullanımlıdır.',upgrades:'Ekip geliştirmeleri ortak kasadan bir kez alınır, odadaki HERKESE uygulanır. Sonradan katılanlar da aynı seviyeyi alır. Her yeni seviyenin bedeli artar.'};
+  h+='<p class="shopIntro">'+hints[shopTab]+'</p><div class="shopGrid '+(shopTab==='base'?'baseGrid':'')+'">';
+  if(shopTab==='base'||shopTab==='structures'){
+    if(shopTab==='base'){
+      h+=G.BASE_LEVELS.map((d,i)=>{
+        const level=i+1,done=baseLevel>=level,next=level===baseLevel+1;
+        const reason=done?'AÇILDI':!next?'ÖNCE ÖNCEKİ KADEME':completedNights<d.night?d.night+' GECE TAMAMLA':phase!=='prep'?'HAZIRLIĞI BEKLE':gold<d.cost?'$'+d.cost+' · PARA YETERSİZ':'ÜSSÜ YÜKSELT · $'+d.cost;
+        return '<article class="marketCard '+(done?'equipped':'')+'"><div class="itemBadge">ÜS SEVİYE '+level+'</div><h3>'+d.name+'</h3><button data-buy="baselevel" '+(!next||completedNights<d.night||phase!=='prep'||gold<d.cost||myState!=='alive'?'disabled':'')+'>'+reason+'</button><p>'+d.desc+'</p><ul class="equipmentFacts"><li>'+d.hp+' maksimum üs canı</li><li>'+d.turrets+' taret kapasitesi</li><li>Yapı seviye sınırı: '+level+'</li><li>Şart: '+d.night+' gece tamamla · $'+d.cost+'</li><li>Yükseltme yalnızca eklenen kapasite kadar can verir.</li></ul></article>';
+      }).join('');
+    }else{
+      const structures=wallsLive.filter(w=>w.kind!=='mine').sort((a,b)=>Math.hypot(a.x-pred.x,a.y-pred.y)-Math.hypot(b.x-pred.x,b.y-pred.y));
+      h+=structures.length?structures.map(w=>{
+        const d=G.BUILD[w.kind],level=w.lv||1,near=Math.hypot(w.x-pred.x,w.y-pred.y)<=420,cost=G.structureUpgradeCost(w.kind,level),stats=G.structureStats(w.kind,Math.min(4,level+1),myUpgrades.fortification||0);
+        const reason=level>=4?'TAM SEVİYE':level>=baseLevel?'ÜS SEVİYESİ YETERSİZ · '+(level+1):!near?'YAPIYA YAKLAŞ · 420':gold<cost?'$'+cost+' · PARA YETERSİZ':'SEVİYE '+(level+1)+' · $'+cost;
+        return '<article class="marketCard"><div class="itemBadge">YAPI #'+w.id+' · SEVİYE '+level+'</div><h3>'+d.name+'</h3><button data-structure="'+w.id+'" '+(level>=4||level>=baseLevel||!near||gold<cost||myState!=='alive'?'disabled':'')+'>'+reason+'</button><p>Üssün '+(w.y<G.BASE.y-60?'kuzey':w.y>G.BASE.y+60?'güney':'')+(w.x<G.BASE.x-60?'batı':w.x>G.BASE.x+60?'doğu':'')+' tarafında · Sana '+Math.round(Math.hypot(w.x-pred.x,w.y-pred.y))+' birim uzakta</p><ul class="equipmentFacts"><li>Sonraki maksimum can: '+stats.hp+'</li>'+(d.turret?'<li>Sonraki vuruş: '+(stats.damage*(1+.15*(myUpgrades.sentry||0))).toFixed(1)+'</li><li>Sonraki menzil: '+Math.round(stats.range)+'</li>':w.kind==='spikes'?'<li>Sonraki hasar: '+stats.damage.toFixed(1)+'/sn</li>':'')+'<li>Can oranı korunur; hasar bedavaya onarılmaz.</li></ul></article>';
+      }).join(''):'<p class="shopEmpty">Henüz geliştirilecek yapı yok. Savunma sekmesinden bir yapı kur.</p>';
+    }
+    h+='</div><footer class="shopFooter">ÜS SV. '+baseLevel+' · '+completedNights+' GECE TAMAMLANDI · TARET '+wallsLive.filter(w=>G.BUILD[w.kind]?.turret).length+' / '+G.BASE_LEVELS[baseLevel-1].turrets+'</footer>';
+    shopEl.innerHTML=h;return;
+  }
   const ids=shopTab==='weapons'?G.WEAPON_ORDER:shopTab==='build'?Object.keys(G.BUILD):shopTab==='support'?['medkit','ammo','wallrepair','baserepair','teammed','teamammo']:Object.keys(G.UPGRADES);
   for(const id of ids){
     const d=shopTab==='weapons'?G.WEAPONS[id]:shopTab==='build'?G.BUILD[id]:shopTab==='support'?G.SHOP[id]:G.UPGRADES[id];
     const owned=shopTab==='weapons'&&ownedWeaps.includes(id),active=owned&&myWeapon===id,level=myUpgrades[id]||0;
     const capped=shopTab==='upgrades'&&level>=d.max;
-    const price=owned?0:d.cost*(shopTab==='upgrades'?level+1:1),can=gold>=price&&myState==='alive'&&!capped;
+    const locked=!owned&&baseLevel<(d.baseLevel||1),capacity=shopTab==='build'&&d.turret&&wallsLive.filter(w=>G.BUILD[w.kind]?.turret).length>=G.BASE_LEVELS[baseLevel-1].turrets;
+    const price=owned?0:d.cost*(shopTab==='upgrades'?level+1:1),can=gold>=price&&myState==='alive'&&!capped&&!locked&&!capacity;
     let detail=d.desc|| (id==='medkit'?'Anında +'+d.heal+' can':id==='ammo'?'Aktif silahın şarjörünü hemen doldur':id==='wallrepair'?'En yakın hasarlı yapıya +'+d.heal+' can · 420 menzil':'Sığınağa +'+d.heal+' can');
     let stats='';
     if(shopTab==='weapons'){const dps=Math.round(d.damage*d.pellets/d.rate);stats='<div class="itemStats"><span>'+d.damage+(d.pellets>1?' × '+d.pellets:'')+'<small>HASAR</small></span><span>'+d.mag+'<small>ŞARJÖR</small></span><span>'+d.range+'<small>MENZİL</small></span></div>';detail+=d.beam?' · 0.2 sn başına 3–150 hasar':' · '+dps+' teorik hasar/sn';}
     if(shopTab==='build')stats='<div class="itemStats"><span>'+d.hp+'<small>DAYANIKLILIK</small></span><span>'+(d.turret?d.range:d.trap?'TUZAK':'SAVUNMA')+'<small>'+(d.turret?'MENZİL':'TÜR')+'</small></span></div>';
     if(shopTab==='upgrades')stats='<div class="levelTrack">'+Array.from({length:d.max},(_,i)=>'<i class="'+(i<level?'on':'')+'"></i>').join('')+'<span>'+level+' / '+d.max+'</span></div>';
-    const facts=[];
+    const facts=['Gerekli üs seviyesi: '+(d.baseLevel||1)];
     if(shopTab==='weapons'){
       facts.push('Doldurma: '+(d.reload*(1-.1*(myUpgrades.handling||0))).toFixed(2)+' sn','Ateş aralığı: '+d.rate+' sn','İsabet başına: '+(d.beam?'3 → 150':+(d.damage*(1+.1*(myUpgrades.power||0))).toFixed(1))+' × '+d.pellets,'Delme: '+(d.pierce+1)+' hedef',d.armorPierce?'Zırhı yok sayar':'Zırh hasarı azaltabilir','Menzil: '+d.range+' · '+(d.beam?'Anlık ışın':'Mermi hızı: '+d.speed));
     }else if(shopTab==='build'){
       facts.push('Can: '+Math.round(d.hp*(id==='mine'?1:1+.2*(myUpgrades.fortification||0))),'Söküm iadesi: en fazla $'+Math.floor(d.cost*.4));
-      if(d.turret)facts.push('Vuruş: '+(d.damage*(1+.15*(myUpgrades.sentry||0))).toFixed(1),'Atış aralığı: '+d.rate+' sn','Menzil: '+d.range,'Delme: '+((d.pierce||0)+1)+' hedef');
+      if(d.turret)facts.push('6 sn sürekli ateş → 3 sn soğuma','Kapasite: '+G.BASE_LEVELS[baseLevel-1].turrets+' taret','Vuruş: '+(d.damage*(1+.15*(myUpgrades.sentry||0))).toFixed(1),'Atış aralığı: '+d.rate+' sn','Menzil: '+d.range,'Delme: '+((d.pierce||0)+1)+' hedef');
       else if(id==='mine')facts.push('Patlama: '+d.damage+' hasar','Yarıçap: '+d.splash+' · tetik: 65');
       else if(id==='spikes')facts.push('Hasar: '+d.dps+'/sn','Yavaşlatma: %50','Aşınma: temas sırasında 8 can/sn');
       else facts.push(d.solid?'Oyuncu ve zombiyi durdurur':'Oyuncular geçer, zombiler durur','Dost mermileri geçer; asidi durdurur');
     }else if(shopTab==='upgrades')facts.push('Etki: bütün ekip','Yeni katılanlara da uygulanır','En çok '+d.max+' seviye','Sonraki seviye: $'+(d.cost*(level+1)));
     else facts.push('Bedel: $'+d.cost,(id.startsWith('team')?'Etki: bütün ekip':id==='baserepair'?'Etki: ortak sığınak':id==='wallrepair'?'Etki: en yakın hasarlı yapı':'Etki: satın alan oyuncu'));
+    if(d.slow)facts.push('Yavaşlatma: bu gece %'+Math.round((1-G.slowFactor(Math.max(1,waveN)))*100)+' · Geç gecelerde direnç artar');
     stats+='<ul class="equipmentFacts">'+facts.map(f=>'<li>'+f+'</li>').join('')+'</ul>';
     const attr=shopTab==='build'?'data-place':'data-buy';
-    const label=active?'KUŞANILDI':capped?'TAM SEVİYE':owned?'KUŞAN':!can&&gold<price?'$'+price+' · PARA YETERSİZ':shopTab==='build'?'YERLEŞTİR · $'+price:shopTab==='upgrades'?'GELİŞTİR · $'+price:'SATIN AL · $'+price;
+    const label=locked?'ÜS SEVİYESİ YETERSİZ · '+d.baseLevel:capacity?'TARET KAPASİTESİ DOLU':active?'KUŞANILDI':capped?'TAM SEVİYE':owned?'KUŞAN':!can&&gold<price?'$'+price+' · PARA YETERSİZ':shopTab==='build'?'YERLEŞTİR · $'+price:shopTab==='upgrades'?'GELİŞTİR · $'+price:'SATIN AL · $'+price;
     h+='<article class="marketCard '+(active?'equipped':'')+'"><div class="itemTop"><span class="itemIcon">'+(shopTab==='weapons'?'⌁':shopTab==='build'?'▥':shopTab==='upgrades'?'↑':'+')+'</span><span class="itemBadge">'+(owned?'ENVANTERİNDE':shopTab==='upgrades'?'TÜM EKİP':shopTab==='build'?'ORTAK SAVUNMA':shopTab==='weapons'?'KALICI SİLAH':'TEK KULLANIM')+'</span></div><h3>'+d.name+'</h3><button '+attr+'="'+id+'" '+(!can||active?'disabled':'')+'>'+label+'</button><p>'+detail+'</p>'+stats+'</article>';
   }
   h+='</div><footer class="shopFooter"><span>Gece market açıkken de devam eder.</span><span><kbd>B</kbd> kapat / inşayı iptal · <kbd>X</kbd> imleçteki yapıyı sök (%40 iade)</span></footer>';
@@ -421,9 +445,10 @@ function renderShop(){
 shopEl.addEventListener('click',e=>{
   const tab=e.target.closest('[data-tab]');if(tab){shopTab=tab.dataset.tab;renderShop();return;}
   if(e.target.closest('[data-close]')){closeShop();return;}
+  const structure=e.target.closest('[data-structure]');if(structure){sendMsg({t:'structureUpgrade',id:Number(structure.dataset.structure)});return;}
   const buy=e.target.closest('[data-buy]');if(buy){cancelBuild();sendMsg({t:'buy',item:buy.dataset.buy});return;}
   const build=e.target.closest('[data-place]');if(build){
-    const id=build.dataset.place;if(gold<G.BUILD[id].cost||myState!=='alive')return;
+    const id=build.dataset.place;if(gold<G.BUILD[id].cost||myState!=='alive'||baseLevel<(G.BUILD[id].baseLevel||1))return;
     closeShop();placement=id;updateBuildHint();feed('Boş zemine sol tıkla. B / Esc iptal eder; inşa tek yerleştirmeden sonra kapanır.','#69d990');
   }
 });
@@ -450,7 +475,7 @@ function renderShopGhostCursor() { cv.style.cursor = placement ? 'crosshair' : '
 function updateHud() {
   renderHotbar();
   const ni=G.nightInfo(phase==='prep'?waveN+1:Math.max(1,waveN));
-  $('nightForecast').title='Zırhlı: hasar azaltır · Yıkıcı: yapılara 3 kat hasar · Şifacı: yakın zombileri iyileştirir · Öfkeli: yarı canın altında hızlanır';
+  $('nightForecast').title=ni.desc+' · Zırhlı: hasar azaltır · Yıkıcı: yapılara 3 kat hasar · Şifacı: yakın zombileri iyileştirir · Öfkeli: yarı canın altında hızlanır';
   $('nightForecast').textContent=(phase==='prep'?'SIRADAKİ GECE '+(waveN+1):'GECE '+waveN)+' / '+ni.name+' · '+ni.types.map(t=>G.ZOMBIES[t].name).join(' · ');
   $('waveBtn').disabled=phase!=='prep'||hostId!==myId;
   $('goldVal').textContent = gold;
@@ -460,7 +485,7 @@ function updateHud() {
   const bw = baseMax > 0 ? (baseHp / baseMax * 100) : 0;
   $('baseBar').style.width = bw + '%';
   $('baseBar').style.background = bw > 55 ? 'linear-gradient(90deg,#3fbf6f,#7be495)' : bw > 25 ? 'linear-gradient(90deg,#e0a93e,#ffd166)' : 'linear-gradient(90deg,#c92c3c,#ff7a6b)';
-  $('baseTxt').textContent = baseHp + ' / ' + baseMax;
+  $('baseTxt').textContent = baseHp + ' / ' + baseMax+' · ÜS SV. '+baseLevel;
 
   if (phase === 'prep') {
     $('waveTimer').innerHTML = 'YENİ GECE <b style="color:#ffd166">' + Math.ceil(phaseT) + 's</b>' + (hostId === myId ? ' · <span style="color:#55677e">boşluk: atla</span>' : '');
@@ -521,7 +546,9 @@ function onGameOver(m) {
   closeShop(); placement = null;
   SFX.over();
   showScreen(overEl);
-  $('overWave').textContent = waveN + ' dalga dayandınız';
+  const completed=m.completed??Math.max(0,waveN-1),recordKey='ss_record_'+(m.stats.length===1?'solo':'team');
+  let best=completed;try{best=Math.max(completed,Number(localStorage.getItem(recordKey))||0);localStorage.setItem(recordKey,String(best));}catch{}
+  $('overWave').textContent = completed+' gece hayatta kaldınız · '+m.wave+'. gecede düştünüz · Bu cihazdaki '+(m.stats.length===1?'tek kişilik':'ekip')+' rekor: '+best;
   let h = '';
   for (const s of m.stats) {
     h += '<div class="sline"><span style="color:' + s.color + '">' + esc(s.name) + '</span><b>' + s.kills + ' öldürme</b></div>';
@@ -788,13 +815,17 @@ function drawBase(now) {
   ctx.beginPath(); ctx.arc(0, 0, 34, 0, 7); ctx.fill();
   ctx.fillStyle = '#0f151d';
   ctx.font = 'bold 17px Segoe UI'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText('ÜS', 0, 1);
+  ctx.fillText('ÜS '+baseLevel, 0, 1);
   ctx.restore();
 }
 
 function drawWall(w) {
   const def=G.BUILD[w.kind || (w.k===1?'turret':'wall')];
   const x = w.x - w.w / 2, y = w.y - w.h / 2;
+  if(shopOpen&&shopTab==='structures'){ctx.fillStyle='#e8d7a2';ctx.font='bold 12px Segoe UI';ctx.textAlign='center';ctx.fillText('#'+w.id,w.x,y+w.h+17);}
+  if(w.lv>1){ctx.fillStyle='#ead898';ctx.font='bold 11px Segoe UI';ctx.textAlign='center';ctx.fillText('SV.'+w.lv,w.x,y-12);}
+  if(def.turret&&(w.cool>0||w.jam)){ctx.fillStyle=w.cool>0?'#ffb279':'#ce9dff';ctx.font='bold 10px Segoe UI';ctx.textAlign='center';ctx.fillText(w.cool>0?'SOĞUMA':'BOZULDU',w.x,y-24);}
+  if(def.turret&&w.heat>0){ctx.fillStyle='#25333d';ctx.fillRect(x,y+w.h+4,w.w,3);ctx.fillStyle=w.cool>0?'#f9a26b':'#dcc684';ctx.fillRect(x,y+w.h+4,w.w*Math.min(1,w.heat),3);}
   const frac = w.mh > 0 ? w.hp / w.mh : 1;
   if(def.trap){
     ctx.fillStyle=def.splash?'#efb56b':'#748d9b';ctx.strokeStyle='#a9c2c4';ctx.lineWidth=2;
@@ -871,6 +902,8 @@ function drawZombie(z, now) {
   if(base.armor){ctx.strokeStyle='#c7d5df';ctx.lineWidth=5;ctx.beginPath();ctx.arc(z.x,z.y,r*.8,ang-.9,ang+.9);ctx.stroke();}
   if(base.healAura){ctx.strokeStyle='#60e2b977';ctx.lineWidth=2;ctx.beginPath();ctx.arc(z.x,z.y,r+8+Math.sin(now/250)*3,0,Math.PI*2);ctx.stroke();ctx.fillStyle='#d2fff0';ctx.fillRect(z.x-2,z.y-7,4,14);ctx.fillRect(z.x-7,z.y-2,14,4);}
   if(base.siege){ctx.fillStyle='#ffda83';ctx.fillRect(z.x-7,z.y-7,14,14);}
+  if(base.artillery){ctx.strokeStyle='#754a2c';ctx.lineWidth=7;ctx.beginPath();ctx.moveTo(z.x,z.y);ctx.lineTo(z.x+Math.cos(ang)*28,z.y+Math.sin(ang)*28);ctx.stroke();}
+  if(base.disrupt){ctx.strokeStyle='#b991e233';ctx.lineWidth=1.5;ctx.setLineDash([8,12]);ctx.beginPath();ctx.arc(z.x,z.y,base.disrupt,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);ctx.strokeStyle='#e2c4ff';ctx.lineWidth=3;ctx.beginPath();ctx.arc(z.x,z.y,r+5,0,Math.PI*2);ctx.stroke();}
   // eyes
   const ex = Math.cos(ang), ey = Math.sin(ang);
   const ex1 = z.x + ex * r * 0.45 - ey * r * 0.28, ey1 = z.y + ey * r * 0.45 + ex * r * 0.28;
