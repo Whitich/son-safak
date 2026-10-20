@@ -10,6 +10,7 @@ const ctx = new Proxy({save(){depth++},restore(){depth--},fill(){draws++},create
 function el(id){if(!elements.has(id)) elements.set(id,{value:'',classList:{add(){},remove(){},toggle(){},contains(){return false}},style:{},addEventListener(){},getContext(){return ctx},appendChild(){},children:[],textContent:'',innerHTML:''});return elements.get(id)}
 const sandbox={window:{GameCore:G},document:{getElementById:el,createElement:()=>el('temp')},innerWidth:1440,innerHeight:900,devicePixelRatio:1,performance:{now:()=>1000},addEventListener(){},localStorage:{getItem(){return ''},setItem(){}},requestAnimationFrame(){},setTimeout(){},console,location:{protocol:'http:',host:'localhost:3000'}};
 vm.createContext(sandbox);
+vm.runInContext(fs.readFileSync('./public/character-art.js','utf8'),sandbox);
 vm.runInContext(fs.readFileSync('./public/client.js','utf8'),sandbox);
 vm.runInContext(`myId=1; enterGame(); onSnapshot({t:'s',g:250,w:0,p:'prep',ti:12,bh:3000,bmh:3000,L:[],Z:[],B:[],A:[],P:[{i:1,x:1390,y:800,c:'#fff',n:'Test',s:'alive',w:'pistol',mz:14,rl:0,hp:100,mh:100,k:0}],ev:[]}); render(1000);`,sandbox);
 assert.equal(depth,0,'Canvas save/restore must balance');
@@ -36,3 +37,7 @@ vm.runInContext("for(const kind of Object.keys(G.BUILD))drawWall({kind,k:G.BUILD
 vm.runInContext("for(const t of Object.keys(G.ZOMBIES))drawZombie({i:1,t,x:100,y:100,hp:10,mh:100},1000);",sandbox);
 assert.equal(depth,0);
 console.log('PASS | closing construction, all new structure and enemy renderers');
+
+vm.runInContext(`for(const outfits of G.APPEARANCE.outfits) for(const heads of G.APPEARANCE.heads) for(const skins of G.APPEARANCE.skins) for(const angle of [0,Math.PI/2,Math.PI,-Math.PI/2]) for(const down of [false,true]) window.CharacterArt.draw(ctx,{outfits:outfits.id,heads:heads.id,skins:skins.id},angle,1.2,1,down);`,Object.assign(sandbox,{ctx}));
+assert.equal(depth,0,'All survivor outfits, headings and down poses balance canvas state');
+console.log('PASS | all survivor outfits, headwear, skin tones, aim directions and down poses');

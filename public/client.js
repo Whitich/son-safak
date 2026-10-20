@@ -180,6 +180,7 @@ function updateStartBtn(m) {
 function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 
 function enterGame() {
+  playerPoses.clear();
   inGame = true;
   snapPrev = snapNext = latest = null;
   keys.clear(); mouse.down = false;
@@ -892,6 +893,7 @@ function drawZombie(z, now) {
   }
 }
 
+const playerPoses = new Map();
 function drawPlayer(p, now) {
   const isMe = p.i === myId;
   const x = isMe ? pred.x : p.x, y = isMe ? pred.y : p.y;
@@ -899,28 +901,23 @@ function drawPlayer(p, now) {
 
   if (p.s === 'dead') return;
 
-  ctx.fillStyle = 'rgba(0,0,0,.35)';
-  ctx.beginPath(); ctx.ellipse(x, y + R * 0.5, R * 0.95, R * 0.4, 0, 0, 7); ctx.fill();
-
-  const ap=G.sanitizeAppearance(p.ap),uniform=G.APPEARANCE.colors.find(v=>v.id===ap.colors).value,skin=G.APPEARANCE.skins.find(v=>v.id===ap.skins).value;
   const down = p.s === 'down';
   const aim = isMe ? Math.atan2(mouseWorld().y - y, mouseWorld().x - x) : p.a;
-
-  if (isMe) {
-    ctx.strokeStyle='#8eecc6';ctx.lineWidth=2;ctx.shadowColor='#74ffd1';ctx.shadowBlur=12;
-    ctx.beginPath();ctx.ellipse(x,y+8,R+11,(R+11)*0.6,0,0,Math.PI*2);ctx.stroke();ctx.shadowBlur=0;
+  let pose = playerPoses.get(p.i);
+  if (!pose) { pose = {x,y,time:now,stride:0,moving:0}; playerPoses.set(p.i,pose); }
+  const distance = Math.hypot(x-pose.x,y-pose.y);
+  const dt = Math.max(0,Math.min((now-pose.time)/1000,.1));
+  const moving = !down && distance > .05 && distance < 50;
+  if(moving) pose.stride += distance * .17;
+  pose.moving += ((moving ? 1 : 0)-pose.moving)*Math.min(1,dt*18);
+  pose.x=x;pose.y=y;pose.time=now;
+  if(isMe) {
+    ctx.strokeStyle='rgba(166,222,188,.5)';ctx.lineWidth=1.3;
+    ctx.beginPath();ctx.ellipse(x,y+17,20,8,0,0,Math.PI*2);ctx.stroke();
   }
-  // gun
-  ctx.strokeStyle = '#0c0f14'; ctx.lineWidth = 6; ctx.lineCap = 'round';
-  ctx.beginPath();
-  ctx.moveTo(x + Math.cos(aim) * 4, y + Math.sin(aim) * 4);
-  ctx.lineTo(x + Math.cos(aim) * (R + 12), y + Math.sin(aim) * (R + 12));
-  ctx.stroke();
-
-  ctx.fillStyle = down ? '#6b3a44' : p.c;
-  ctx.strokeStyle = isMe ? '#ffffff' : 'rgba(0,0,0,.6)';
-  ctx.lineWidth = isMe ? 3 : 2;
-  ctx.beginPath(); ctx.arc(x, y, R, 0, 7); ctx.fill(); ctx.stroke();
+  ctx.save();ctx.translate(x,y);
+  window.CharacterArt.draw(ctx,p.ap,aim,pose.stride,pose.moving,down);
+  ctx.restore();
 
   if (down) {
     ctx.strokeStyle = '#ff5a5a'; ctx.lineWidth = 3;
@@ -938,28 +935,18 @@ function drawPlayer(p, now) {
     ctx.fillText(Math.ceil(p.b) + 's', x, y + R + 18);
   }
 
-  // Helmet, shoulders and directional weapon silhouette.
-  ctx.save();ctx.translate(x,y);ctx.rotate(aim);
-  ctx.fillStyle=down?'#69434b':uniform;ctx.fillRect(-9,-16,16,32);
-  ctx.fillStyle=skin;ctx.beginPath();ctx.arc(1,0,9,0,Math.PI*2);ctx.fill();
-  ctx.fillStyle=down?'#594248':ap.heads==='beret'?'#773f50':uniform;ctx.beginPath();ctx.arc(-2,0,ap.heads==='hood'?11:9,0,Math.PI*2);ctx.fill();
-  if(ap.outfits==='heavy'){ctx.fillStyle='#99afb1';ctx.fillRect(-10,-13,8,26);}
-  if(ap.outfits==='hazmat'){ctx.fillStyle='#e0c866';ctx.fillRect(-9,-14,7,28);ctx.fillStyle='#69c6ba';ctx.fillRect(3,-7,5,14);}
-  if(ap.heads==='helmet'){ctx.strokeStyle='#2e4545';ctx.lineWidth=3;ctx.beginPath();ctx.arc(-2,0,9,-1.7,1.7);ctx.stroke();}
-  ctx.fillStyle='#111b20';ctx.fillRect(8,5,25,6);ctx.fillStyle='#9baaa8';ctx.fillRect(23,6,12,3);
-  ctx.restore();
   // name + hp
   ctx.font = 'bold 12.5px Segoe UI'; ctx.textAlign = 'center';
   ctx.fillStyle = 'rgba(0,0,0,.6)';
-  ctx.fillText(p.n, x + 1, y - R - 21);
+  ctx.fillText(p.n, x + 1, y - R - 37);
   ctx.fillStyle = isMe ? '#ffffff' : p.c;
-  ctx.fillText(p.n, x, y - R - 22);
+  ctx.fillText(p.n, x, y - R - 38);
   if (p.hp < p.mh || down) {
     const wdt = 42;
     ctx.fillStyle = '#10161f';
-    ctx.fillRect(x - wdt / 2, y - R - 17, wdt, 5);
+    ctx.fillRect(x - wdt / 2, y - R - 32, wdt, 5);
     ctx.fillStyle = down ? '#ff5a5a' : '#3fbf6f';
-    ctx.fillRect(x - wdt / 2, y - R - 17, wdt * G.clamp(p.hp / p.mh, 0, 1), 5);
+    ctx.fillRect(x - wdt / 2, y - R - 32, wdt * G.clamp(p.hp / p.mh, 0, 1), 5);
   }
 
   if (isMe && myReload > 0) {
