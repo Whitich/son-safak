@@ -24,7 +24,7 @@ test('Oyuncunun üzerine yapı konulamaz ve ölü karakter inşa edemez',()=>{
  const {r,p}=setup();assert.equal(r.build('wall',p.x,p.y,p.id),false);p.state='dead';assert.equal(r.build('wall',400,400,p.id),false);
 });
 test('Sökme yakınlık ister ve yalnızca sağlığa göre %40 iade eder',()=>{
- const {r,p}=setup();r.build('wall',400,200,p.id);assert.equal(r.salvage(400,200,p.id),false);p.x=400;p.y=260;r.walls[0].hp=C.BUILD.wall.hp/2;const gold=r.gold;assert.ok(r.salvage(400,200,p.id));assert.equal(r.gold,gold+10);assert.equal(r.walls.length,0);
+ const {r,p}=setup();r.build('wall',400,200,p.id);assert.equal(r.salvage(400,200,p.id),false);p.x=400;p.y=260;r.walls[0].hp=C.BUILD.wall.hp/2;const gold=r.gold;assert.ok(r.salvage(400,200,p.id));assert.equal(r.gold,gold+Math.floor(C.BUILD.wall.cost*.4*.5));assert.equal(r.walls.length,0);
 });
 test('Tam duvarı onarmak yeni duvarın maliyetinden ucuzdur',()=>{
  assert.ok(Math.ceil(C.BUILD.wall.hp/C.SHOP.wallrepair.heal)*C.SHOP.wallrepair.cost<C.BUILD.wall.cost);

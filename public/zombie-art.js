@@ -103,5 +103,23 @@
     }
     ctx.restore();
   }
-  window.ZombieArt={draw};
+  // Reuse a bounded set of gait/direction sprites instead of rebuilding dozens
+  // of vector paths for every infected on every animation frame.
+  const sprites=new Map();
+  function drawCached(ctx,type,angle,stride,time,rage=false){
+    if(typeof document==='undefined')return draw(ctx,type,angle,stride,time,rage);
+    const tau=Math.PI*2,dir=((Math.round(angle/tau*12)%12)+12)%12;
+    const gait=((Math.round(stride/tau*4)%4)+4)%4,angry=type==='berserker'&&rage;
+    const key=type+':'+dir+':'+gait+':'+angry;
+    let sprite=sprites.get(key);
+    if(!sprite){
+      const r=(G.ZOMBIES[type]||G.ZOMBIES.walker).r,size=Math.ceil(r*4+12),density=1.5;
+      const canvas=document.createElement('canvas');canvas.width=canvas.height=Math.ceil(size*density);
+      const c=canvas.getContext('2d');c.scale(density,density);c.translate(size/2,size/2);
+      draw(c,type,dir*tau/12,gait*tau/4,1000,angry);
+      sprite={canvas,size};if(sprites.size>=384)sprites.delete(sprites.keys().next().value);sprites.set(key,sprite);
+    }else{sprites.delete(key);sprites.set(key,sprite);}
+    ctx.drawImage(sprite.canvas,-sprite.size/2,-sprite.size/2,sprite.size,sprite.size);
+  }
+  window.ZombieArt={draw,drawCached};
 })();

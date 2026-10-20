@@ -1,4 +1,4 @@
-# Son Şafak 4.3
+# Son Şafak 4.4
 
 [Tarayıcıda oyna](https://son-safak.onrender.com/) — 1–8 kişilik kooperatif zombi savunması.
 
@@ -12,7 +12,7 @@
 
 Market: 12 kalıcı silah, 9 yapı, 6 destek ve 7 kademeli ortak geliştirme. Başlangıç ortak parası tek oyuncuda $550; ek oyuncu başına $200. İlk hazırlık 45 sn, sonraki hazırlıklar 30 sn. Market oyunu durdurmaz.
 
-Duvar, çelik barikat ve kapı taret ateşini engeller. Oyuncu mermileri dost yapılardan geçer. Demir çit ($140 / 300 can) zombileri ve oyuncuları durdururken taret ateşini ve asidi geçirir; her üs seviyesinde kullanılabilir ve seviye basılabilir. Kapı oyunculara geçiş verirken zombileri durdurur. Dikenli tel yavaşlatır ve hasar verir; mayın tek kullanımlık alan patlamasıdır. Taretlerin menzil ve etkileri farklıdır. Duvar $50 / 240 can; yapı tamiri $15 / 160 can.
+Duvar, çelik barikat ve kapı taret ateşini engeller. Oyuncu mermileri dost yapılardan geçer. Demir çit ($130 / 300 can) zombileri ve oyuncuları durdururken taret ateşini ve asidi geçirir; her üs seviyesinde kullanılabilir ve seviye basılabilir. Kapı oyunculara geçiş verirken zombileri durdurur. Dikenli tel yavaşlatır ve hasar verir; mayın tek kullanımlık alan patlamasıdır. Taretlerin menzil ve etkileri farklıdır. Duvar $45 / 240 can; yapı tamiri $15 / 160 can.
 
 Her başarılı gecenin sonunda en az bir oyuncu ayaktaysa tüm ekip tam can ve şarjörle geri döner. Üs otomatik onarılmaz. Üs düşerse veya herkes ölürse maç biter.
 
@@ -64,3 +64,9 @@ Taret hedeflemesi görüş hattını kontrol eder; kapalı hedef yerine açık h
 ## Enfekte görünümü (4.3)
 
 12 tür için ortak savaş alanı/katalog çizimi: bozuk gövde silüeti, uzanan pençeler, yırtık kıyafet, açık omurga ve türlere özgü detaylar. Sürücü yere yakın hareket eder; Güçlü ve boss asimetrik ve kemiksi çıkıntılıdır. Tükürükçü/kuşatmacı asit keseleri, şifacı mantarlar, bozucu mor çıkıntılar taşır. Adım animasyonu gerçek hareket mesafesine bağlıdır. Fiziksel boyutlar ve oyun kuralları korunur.
+
+## Market görselleri ve akıcılık (4.4)
+
+Silahlar, savunmalar, destekler, ekip geliştirmeleri, üsler ve tek tek yapı geliştirmeleri ürün çizimi taşır. Silah fiyatları yaklaşık %8 düşürüldü (en yakın $5'e yuvarlanır). Duvar $45, çelik barikat $100, kapı $80, demir çit $130; diğer yapı ve geliştirme fiyatları aynı kalır.
+
+Sol üstte ms (sunucuya gidiş-dönüş süresi) ve gerçek çizim FPS'i gösterilir. Zombi yön/adım çizimleri 384 girişli bir önbellekte yeniden kullanılır; ekran dışındaki zombiler çizilmez. Vuruş sesi sıklığı ve parçacık sayısı sınırlandırılır. Yüksek yenileme hızlarında gereksiz çizim yükünü azaltmak için çizim 60 FPS ile sınırlıdır; hareket/girdi ve sunucu güncellemesi bu sınıra bağlı değildir. Yerel 100 zombi görsel kontrolünde 60 FPS görüldü; bu, her cihaz veya internet bağlantısı için garanti değildir.

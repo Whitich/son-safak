@@ -138,7 +138,7 @@ function makeRoom(nPlayers) {
   log('yetersiz altınla inşa reddi', !room.build('wall', 100, 100, list[0].id) && room.gold === 40);
   room.gold = 100;
   log('dünya dışına inşa reddi', !room.build('wall', -50, 100, list[0].id) && room.gold === 100);
-  log('geçerli inşa kabul', room.build('wall', 700, 500, list[0].id) && room.gold === 50);
+  log('geçerli inşa kabul', room.build('wall', 700, 500, list[0].id) && room.gold === 100-C.BUILD.wall.cost);
 }
 
 // 8. taret: menzildeki zombiye otomatik atış
@@ -177,7 +177,7 @@ function makeRoom(nPlayers) {
   const p = list[0];
   room.gold = 0;
   log('altınsız silah reddi', !room.buy('smg', p.id) && !p.owned.includes('smg'));
-  room.gold = 400;
+  room.gold = C.WEAPONS.smg.cost;
   log('SMG alındı', room.buy('smg', p.id) && p.owned.includes('smg') && p.weapon === 'smg' && room.gold === 0);
   log('tekrar alma ücretsiz envantere', room.buy('smg', p.id) && room.gold === 0);
   room.gold = 120;

@@ -12,6 +12,7 @@ const sandbox={window:{GameCore:G},document:{getElementById:el,createElement:()=
 vm.createContext(sandbox);
 vm.runInContext(fs.readFileSync('./public/character-art.js','utf8'),sandbox);
 vm.runInContext(fs.readFileSync('./public/zombie-art.js','utf8'),sandbox);
+vm.runInContext(fs.readFileSync('./public/market-art.js','utf8'),sandbox);
 vm.runInContext(fs.readFileSync('./public/client.js','utf8'),sandbox);
 vm.runInContext(`myId=1; enterGame(); onSnapshot({t:'s',g:250,w:0,p:'prep',ti:12,bh:3000,bmh:3000,L:[],Z:[],B:[],A:[],P:[{i:1,x:1390,y:800,c:'#fff',n:'Test',s:'alive',w:'pistol',mz:14,rl:0,hp:100,mh:100,k:0}],ev:[]}); render(1000);`,sandbox);
 assert.equal(depth,0,'Canvas save/restore must balance');
@@ -54,3 +55,22 @@ console.log('PASS | locked shop tiers, base progression and individual structure
 vm.runInContext(`for(const type of Object.keys(G.ZOMBIES)) for(const angle of [0,Math.PI/2,Math.PI,-Math.PI/2]) for(const stride of [0,1.5,3]) for(const rage of [false,true]) window.ZombieArt.draw(ctx,type,angle,stride,1200,rage);`,sandbox);
 assert.equal(depth,0,'All infected silhouettes balance canvas state');
 console.log('PASS | all infected types, headings, gait poses and rage states');
+
+for(const [category,items] of Object.entries({weapons:G.WEAPONS,build:G.BUILD,support:G.SHOP,upgrades:G.UPGRADES})){
+ for(const id of Object.keys(items)){
+  const art=vm.runInContext(`window.MarketArt.svg('${category}','${id}')`,sandbox);
+  assert.ok(art.includes('<svg')&&art.includes('role="img"')&&art.includes(items[id].name));
+ }
+}
+for(let level=1;level<=4;level++)assert.ok(vm.runInContext(`window.MarketArt.svg('base','base',${level})`,sandbox).includes('<svg'));
+vm.runInContext('for(let i=0;i<300;i++)spark(100,100)',sandbox);
+assert.ok(vm.runInContext('particles.length',sandbox)<=240,'Crowded fights bound cosmetic particle work');
+assert.equal(depth,0);
+console.log('PASS | all market products have art and crowded-fight particles stay bounded');
+
+let canvasBuilds=0;const originalCreate=sandbox.document.createElement;
+sandbox.document.createElement=(tag)=>{if(tag==='canvas')canvasBuilds++;return originalCreate(tag)};
+vm.runInContext('for(let i=0;i<100;i++)window.ZombieArt.drawCached(ctx,"runner",1.111,1.111,1000+i)',sandbox);
+assert.equal(canvasBuilds,1,'Repeated infected poses reuse a sprite instead of rebuilding vector paths');
+sandbox.document.createElement=originalCreate;
+console.log('PASS | infected sprite cache reuses identical poses');

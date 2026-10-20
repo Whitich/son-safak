@@ -91,7 +91,7 @@ const lastSnap = inbox => inbox.filter(m => m.t === 's').pop();
   await sleep(250);
   s = lastSnap(a.inbox);
   log('duvar inşa edildi', s.L.length >= 1, 'duvar=' + s.L.length);
-  log('duvar altını düşürdü', s.g === g0 - 50, g0 + '→' + s.g);
+  log('duvar altını düşürdü', s.g === g0 - C.BUILD.wall.cost, g0 + '→' + s.g);
 
   const g1 = s.g;
   a.ws.send(JSON.stringify({ t: 'build', k: 'turret', x: 1500, y: 800 }));
@@ -99,7 +99,7 @@ const lastSnap = inbox => inbox.filter(m => m.t === 's').pop();
   s = lastSnap(a.inbox);
   const turret = s.L.find(l => l.k === 1);
   log('taret inşa edildi', !!turret, turret ? 'taret hp=' + turret.hp : 'yok');
-  log('taret altını düşürdü', s.g === g1 - 350, g1 + '→' + s.g);
+  log('taret altını düşürdü', s.g === g1 - C.BUILD.turret.cost, g1 + '→' + s.g);
 
   // 8. taret otomatik atış
   const turretShot = await waitFor(a.inbox, m => m.t === 's' && m.B.some(b => b.o === -1), 20000).catch(() => null);

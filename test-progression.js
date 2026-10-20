@@ -76,7 +76,7 @@ test('Completed nights, IDs and structure levels reach snapshots and reset on re
 });
 test('Shared structure upgrades cannot overspend under consecutive teammate requests',()=>{
   const {r,p}=setup();const other=r.addPlayer(ws(),'B','#fff');other.x=other.y=100;
-  r.build('wall',300,100,p.id);r.build('wall',300,200,p.id);r.baseLevel=2;r.gold=30;
+  r.build('wall',300,100,p.id);r.build('wall',300,200,p.id);r.baseLevel=2;r.gold=C.structureUpgradeCost('wall',1);
   assert.equal(r.upgradeStructure(r.walls[0].id,p.id),true);
   assert.equal(r.upgradeStructure(r.walls[1].id,other.id),false);assert.equal(r.gold,0);
 });

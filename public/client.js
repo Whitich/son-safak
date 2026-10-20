@@ -13,6 +13,7 @@ let latest = null, latestAt = 0;
 let wallsLive = [], zombiesLive = [], playersLive = [];
 let particles = [], decals = [], shake = 0;
 let arcs=[],myLaserTime=0;
+let pingMs=null,pingSent=0,nextPing=0,fpsFrames=0,fpsStart=0,fpsValue=0,lastDraw=0,lastImpactSound=-Infinity;
 let placement = null;
 let shopOpen = false, showScore = false;
 let shopSignature = '';
@@ -148,6 +149,7 @@ function handleMsg(m) {
       enterGame();
       break;
     case 's': onSnapshot(m); break;
+    case 'pong':if(m.id===pingSent)pingMs=Math.round(performance.now()-pingSent);break;
     case 'over': onGameOver(m); break;
     case 'notice': feed(esc(m.m), '#ffd166'); break;
     case 'buildResult':
@@ -181,7 +183,7 @@ function updateStartBtn(m) {
 function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 
 function enterGame() {
-  playerPoses.clear();zFace.clear();
+  playerPoses.clear();zFace.clear();pingMs=null;nextPing=0;fpsFrames=0;fpsStart=performance.now();
   inGame = true;
   snapPrev = snapNext = latest = null;
   keys.clear(); mouse.down = false;
@@ -235,7 +237,7 @@ function processEvents(evs) {
         bloodBurst(e.x, e.y, 10);
         addDecal(e.x, e.y, 12 + Math.random() * 10);
         break;
-      case 'h': SFX.hit(); spark(e.x, e.y); break;
+      case 'h': if(performance.now()-lastImpactSound>65){SFX.hit();lastImpactSound=performance.now();}spark(e.x,e.y);break;
       case 'ph': SFX.hurt(); if (e.id === myId) shake = Math.max(shake, 7); bloodBurst(e.x, e.y, 4); break;
       case 'bh':
         SFX.baseHit(); shake = Math.max(shake, 3);
@@ -300,7 +302,8 @@ function bloodBurst(x, y, n) {
   if (particles.length > 400) particles.splice(0, particles.length - 400);
 }
 function spark(x, y, c) {
-  for (let i = 0; i < 4; i++) {
+  if(particles.length>=240)return;
+  for (let i = 0; i < Math.min(4,240-particles.length); i++) {
     const a = Math.random() * Math.PI * 2, sp = 60 + Math.random() * 200;
     particles.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 0.2 + Math.random() * 0.2, t: 0, r: 1.5 + Math.random() * 2, c: c || '#ffd166' });
   }
@@ -397,14 +400,14 @@ function renderShop(){
       h+=G.BASE_LEVELS.map((d,i)=>{
         const level=i+1,done=baseLevel>=level,next=level===baseLevel+1;
         const reason=done?'AÇILDI':!next?'ÖNCE ÖNCEKİ KADEME':completedNights<d.night?d.night+' GECE TAMAMLA':phase!=='prep'?'HAZIRLIĞI BEKLE':gold<d.cost?'$'+d.cost+' · PARA YETERSİZ':'ÜSSÜ YÜKSELT · $'+d.cost;
-        return '<article class="marketCard '+(done?'equipped':'')+'"><div class="itemBadge">ÜS SEVİYE '+level+'</div><h3>'+d.name+'</h3><button data-buy="baselevel" '+(!next||completedNights<d.night||phase!=='prep'||gold<d.cost||myState!=='alive'?'disabled':'')+'>'+reason+'</button><p>'+d.desc+'</p><ul class="equipmentFacts"><li>'+d.hp+' maksimum üs canı</li><li>'+d.turrets+' taret kapasitesi</li><li>Yapı seviye sınırı: '+level+'</li><li>Şart: '+d.night+' gece tamamla · $'+d.cost+'</li><li>Yükseltme yalnızca eklenen kapasite kadar can verir.</li></ul></article>';
+        return '<article class="marketCard '+(done?'equipped':'')+'"><div class="itemTop">'+window.MarketArt.svg('base','base',level)+'</div><div class="itemBadge">ÜS SEVİYE '+level+'</div><h3>'+d.name+'</h3><button data-buy="baselevel" '+(!next||completedNights<d.night||phase!=='prep'||gold<d.cost||myState!=='alive'?'disabled':'')+'>'+reason+'</button><p>'+d.desc+'</p><ul class="equipmentFacts"><li>'+d.hp+' maksimum üs canı</li><li>'+d.turrets+' taret kapasitesi</li><li>Yapı seviye sınırı: '+level+'</li><li>Şart: '+d.night+' gece tamamla · $'+d.cost+'</li><li>Yükseltme yalnızca eklenen kapasite kadar can verir.</li></ul></article>';
       }).join('');
     }else{
       const structures=wallsLive.filter(w=>w.kind!=='mine').sort((a,b)=>Math.hypot(a.x-pred.x,a.y-pred.y)-Math.hypot(b.x-pred.x,b.y-pred.y));
       h+=structures.length?structures.map(w=>{
         const d=G.BUILD[w.kind],level=w.lv||1,near=Math.hypot(w.x-pred.x,w.y-pred.y)<=420,cost=G.structureUpgradeCost(w.kind,level),stats=G.structureStats(w.kind,Math.min(4,level+1),myUpgrades.fortification||0);
         const reason=level>=4?'TAM SEVİYE':level>=baseLevel?'ÜS SEVİYESİ YETERSİZ · '+(level+1):!near?'YAPIYA YAKLAŞ · 420':gold<cost?'$'+cost+' · PARA YETERSİZ':'SEVİYE '+(level+1)+' · $'+cost;
-        return '<article class="marketCard"><div class="itemBadge">YAPI #'+w.id+' · SEVİYE '+level+'</div><h3>'+d.name+'</h3><button data-structure="'+w.id+'" '+(level>=4||level>=baseLevel||!near||gold<cost||myState!=='alive'?'disabled':'')+'>'+reason+'</button><p>Üssün '+(w.y<G.BASE.y-60?'kuzey':w.y>G.BASE.y+60?'güney':'')+(w.x<G.BASE.x-60?'batı':w.x>G.BASE.x+60?'doğu':'')+' tarafında · Sana '+Math.round(Math.hypot(w.x-pred.x,w.y-pred.y))+' birim uzakta</p><ul class="equipmentFacts"><li>Sonraki maksimum can: '+stats.hp+'</li>'+(d.turret?'<li>Sonraki vuruş: '+(stats.damage*(1+.15*(myUpgrades.sentry||0))).toFixed(1)+'</li><li>Sonraki menzil: '+Math.round(stats.range)+'</li>':w.kind==='spikes'?'<li>Sonraki hasar: '+stats.damage.toFixed(1)+'/sn</li>':'')+'<li>Can oranı korunur; hasar bedavaya onarılmaz.</li></ul></article>';
+        return '<article class="marketCard"><div class="itemTop">'+window.MarketArt.svg('build',w.kind,level)+'</div><div class="itemBadge">YAPI #'+w.id+' · SEVİYE '+level+'</div><h3>'+d.name+'</h3><button data-structure="'+w.id+'" '+(level>=4||level>=baseLevel||!near||gold<cost||myState!=='alive'?'disabled':'')+'>'+reason+'</button><p>Üssün '+(w.y<G.BASE.y-60?'kuzey':w.y>G.BASE.y+60?'güney':'')+(w.x<G.BASE.x-60?'batı':w.x>G.BASE.x+60?'doğu':'')+' tarafında · Sana '+Math.round(Math.hypot(w.x-pred.x,w.y-pred.y))+' birim uzakta</p><ul class="equipmentFacts"><li>Sonraki maksimum can: '+stats.hp+'</li>'+(d.turret?'<li>Sonraki vuruş: '+(stats.damage*(1+.15*(myUpgrades.sentry||0))).toFixed(1)+'</li><li>Sonraki menzil: '+Math.round(stats.range)+'</li>':w.kind==='spikes'?'<li>Sonraki hasar: '+stats.damage.toFixed(1)+'/sn</li>':'')+'<li>Can oranı korunur; hasar bedavaya onarılmaz.</li></ul></article>';
       }).join(''):'<p class="shopEmpty">Henüz geliştirilecek yapı yok. Savunma sekmesinden bir yapı kur.</p>';
     }
     h+='</div><footer class="shopFooter">ÜS SV. '+baseLevel+' · '+completedNights+' GECE TAMAMLANDI · TARET '+wallsLive.filter(w=>G.BUILD[w.kind]?.turret).length+' / '+G.BASE_LEVELS[baseLevel-1].turrets+'</footer>';
@@ -437,7 +440,7 @@ function renderShop(){
     stats+='<ul class="equipmentFacts">'+facts.map(f=>'<li>'+f+'</li>').join('')+'</ul>';
     const attr=shopTab==='build'?'data-place':'data-buy';
     const label=locked?'ÜS SEVİYESİ YETERSİZ · '+d.baseLevel:capacity?'TARET KAPASİTESİ DOLU':active?'KUŞANILDI':capped?'TAM SEVİYE':owned?'KUŞAN':!can&&gold<price?'$'+price+' · PARA YETERSİZ':shopTab==='build'?'YERLEŞTİR · $'+price:shopTab==='upgrades'?'GELİŞTİR · $'+price:'SATIN AL · $'+price;
-    h+='<article class="marketCard '+(active?'equipped':'')+'"><div class="itemTop"><span class="itemIcon">'+(shopTab==='weapons'?'⌁':shopTab==='build'?'▥':shopTab==='upgrades'?'↑':'+')+'</span><span class="itemBadge">'+(owned?'ENVANTERİNDE':shopTab==='upgrades'?'TÜM EKİP':shopTab==='build'?'ORTAK SAVUNMA':shopTab==='weapons'?'KALICI SİLAH':'TEK KULLANIM')+'</span></div><h3>'+d.name+'</h3><button '+attr+'="'+id+'" '+(!can||active?'disabled':'')+'>'+label+'</button><p>'+detail+'</p>'+stats+'</article>';
+    h+='<article class="marketCard '+(active?'equipped':'')+'"><div class="itemTop">'+window.MarketArt.svg(shopTab,id)+'<span class="itemBadge">'+(owned?'ENVANTERİNDE':shopTab==='upgrades'?'TÜM EKİP':shopTab==='build'?'ORTAK SAVUNMA':shopTab==='weapons'?'KALICI SİLAH':'TEK KULLANIM')+'</span></div><h3>'+d.name+'</h3><button '+attr+'="'+id+'" '+(!can||active?'disabled':'')+'>'+label+'</button><p>'+detail+'</p>'+stats+'</article>';
   }
   h+='</div><footer class="shopFooter"><span>Gece market açıkken de devam eder.</span><span><kbd>B</kbd> kapat / inşayı iptal · <kbd>X</kbd> imleçteki yapıyı sök (%40 iade)</span></footer>';
   shopEl.innerHTML=h;
@@ -568,7 +571,10 @@ function loop(now) {
   requestAnimationFrame(loop);
   const dt = Math.min(0.05, (now - lastT) / 1000);
   lastT = now;
-  if (!inGame) { return; }
+  if (!inGame) {fpsFrames=0;fpsStart=now;return;}
+  if(now-fpsStart>=1000){fpsValue=Math.round(fpsFrames*1000/(now-fpsStart));fpsFrames=0;fpsStart=now;$('connectionStats').textContent=(pingMs===null?'—':pingMs)+' ms · '+fpsValue+' FPS';}
+  if(now>=nextPing&&ws?.readyState===1){pingSent=performance.now();sendMsg({t:'ping',id:pingSent});nextPing=now+2000;}
+
 
   // input → local prediction
   let mx = 0, my = 0;
@@ -617,7 +623,8 @@ function loop(now) {
   }
   updateParticles(dt);
   if (showScore) renderScore();
-  render(now);
+  const drawElapsed=now-lastDraw;
+  if(drawElapsed>=1000/60){lastDraw=now-drawElapsed%(1000/60);render(now);fpsFrames++;}
 }
 let keyLatchB = false;
 
@@ -699,7 +706,7 @@ function render(now) {
   const drawables = [];
   const visibleZombieIds=new Set(interpZombies.map(z=>z.i));
   for(const id of zFace.keys())if(!visibleZombieIds.has(id))zFace.delete(id);
-  for (const z of interpZombies) drawables.push({ y: z.y, kind: 'z', e: z });
+  for (const z of interpZombies) if(Math.abs(z.x-cam.x)<vw/(2*s)+100&&Math.abs(z.y-cam.y)<vh/(2*s)+100)drawables.push({ y: z.y, kind: 'z', e: z });
   for (const p of interpPlayers) drawables.push({ y: p.y, kind: 'p', e: p });
   drawables.sort((a, b) => a.y - b.y);
   for (const d of drawables) {
@@ -894,7 +901,7 @@ function drawZombie(z, now) {
   if(base.disrupt){ctx.strokeStyle='#b991e233';ctx.lineWidth=1.5;ctx.setLineDash([8,12]);ctx.beginPath();ctx.arc(z.x,z.y,base.disrupt,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);}
   if(base.healAura||base.boss){ctx.strokeStyle=base.boss?'#ff627955':'#60e2b955';ctx.lineWidth=2;ctx.beginPath();ctx.arc(z.x,z.y,r+7+Math.sin(now/250)*2,0,Math.PI*2);ctx.stroke();}
   ctx.save();ctx.translate(z.x,z.y);
-  window.ZombieArt.draw(ctx,z.t,ang,stride,now,base.rage&&z.hp<z.mh*.5);
+  window.ZombieArt.drawCached(ctx,z.t,ang,stride,now,base.rage&&z.hp<z.mh*.5);
   ctx.restore();
 
   if (z.hp < z.mh || base.boss) {

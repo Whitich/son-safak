@@ -201,6 +201,10 @@
   });
   SHOP.teammed={name:'Ekip Sağlık Paketi',cost:150,heal:60,desc:'Ayaktaki bütün yaralı oyunculara anında +60 can. Yerdekileri diriltmez.'};
   SHOP.teamammo={name:'Ekip Mühimmat Sandığı',cost:100,desc:'Tüm oyuncuların aktif ve yedek silahlarının şarjörlerini doldurur.'};
+  // A small economy adjustment; combat stats and progression gates stay intact.
+  for(const d of Object.values(WEAPONS))if(d.cost)d.cost=Math.round(d.cost*.92/5)*5;
+  Object.assign(BUILD.wall,{cost:45});Object.assign(BUILD.reinforced,{cost:100});
+  Object.assign(BUILD.gate,{cost:80});Object.assign(BUILD.fence,{cost:130});
   const newUpgrades=()=>Object.fromEntries(Object.keys(UPGRADES).map(k=>[k,0]));
   const laserDamage=t=>Math.round(3+147*Math.pow(Math.max(0,Math.min(1,t/4)),3));
   const CLOTHING_COLORS=[
@@ -238,7 +242,8 @@
     disruptor:{night:12,role:'Savunma bozucu',behavior:'260 menzildeki taretlerin atış aralığını iki katına çıkarır. Etkiler üst üste birikmez.',counter:'Mor etki alanına dikkat et; bozucuyu öncelikli hedef yap.'},
     boss:{night:5,role:'Gece lideri',behavior:'Her 5. gecede gelir. Çok yüksek canı ve yakın dövüş hasarı vardır.',counter:'Aynı hedefte lazer odağı biriktir. Ekibin diğer üyeleri küçük zombileri temizlesin.'}
   };
-  function nightInfo(n){return {name:n%5===0?'DEV AVCISI':n>=12?'ELEKTRONİK KUŞATMA':n>=10?'TARET AVCILARI':n>=8?'MUTASYON':n>=4?'KUŞATMA':'İLK TEMAS',boss:n%5===0,types:[...new Set(waveComp(n))].sort(),desc:n>=12?'Taret bozma · artan saldırı hızı · yavaşlatma direnci':n>=10?'Uzun menzilli kuşatmacılar taretleri avlar':n>=6?'Yıkıcı ve destekçi birlikleri öncelikle avla':'İlk savunmanı kur; sonraki gecelere yatırım yap'};}
+  const nightInfoCache=new Map();
+  function nightInfo(n){if(nightInfoCache.has(n))return nightInfoCache.get(n);const value={name:n%5===0?'DEV AVCISI':n>=12?'ELEKTRONİK KUŞATMA':n>=10?'TARET AVCILARI':n>=8?'MUTASYON':n>=4?'KUŞATMA':'İLK TEMAS',boss:n%5===0,types:[...new Set(waveComp(n))].sort(),desc:n>=12?'Taret bozma · artan saldırı hızı · yavaşlatma direnci':n>=10?'Uzun menzilli kuşatmacılar taretleri avlar':n>=6?'Yıkıcı ve destekçi birlikleri öncelikle avla':'İlk savunmanı kur; sonraki gecelere yatırım yap'};if(nightInfoCache.size>=128)nightInfoCache.clear();nightInfoCache.set(n,value);return value;}
   const BASE_LEVELS=[
     {name:'Sığınak',cost:0,night:0,hp:3000,turrets:4,desc:'Temel silahlar ve savunmalar'},
     {name:'Karakol',cost:650,night:3,hp:3800,turrets:6,desc:'Taarruz, nişancı, kriyo, alev ve uzman taretler'},
