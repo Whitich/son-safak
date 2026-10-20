@@ -49,7 +49,7 @@
       name: 'Koşucu', hp: 34, dmg: 7, speed: 125, r: 12, money: 15, attackCd: 0.7, color: '#e8e26b'
     },
     spitter: {
-      name: 'Tükürükcü', hp: 48, dmg: 12, speed: 44, r: 14, money: 22, attackCd: 1.6, range: 300, color: '#9d7bff'
+      name: 'Tükürükçü', hp: 48, dmg: 12, speed: 44, r: 14, money: 22, attackCd: 1.6, range: 300, color: '#9d7bff'
     },
     brute: {
       name: 'Güçlü', hp: 240, dmg: 26, speed: 36, r: 24, money: 55, attackCd: 1.2, color: '#ff7a6b'
@@ -97,7 +97,7 @@
     if(wave>=3) for(let j=0;j<Math.floor(wave*.75);j++) list.push('swarm');
     if(wave>=4) for(let j=0;j<Math.floor((wave-2)*.6);j++) list.push('armored');
     if(wave>=6) for(let j=0;j<Math.floor((wave-3)*.5);j++) list.push('sapper');
-    if(wave>=7) for(let j=0;j<Math.floor((wave-5)*.4);j++) list.push('healer');
+    if(wave>=7) for(let j=0;j<Math.max(1,Math.floor((wave-5)*.4));j++) list.push('healer');
     if(wave>=8) for(let j=0;j<Math.floor((wave-5)*.5);j++) list.push('berserker');
     if(wave%4===0) for(let j=0;j<Math.floor(wave*1.2);j++) list.push('runner');
     let i;
@@ -181,6 +181,43 @@
     power:{name:'Güçlendirilmiş Mermi',cost:250,max:5,desc:'Tüm silahlarda seviye başına +%10 hasar'},
     handling:{name:'Hızlı Şarjör',cost:180,max:3,desc:'Seviye başına %10 daha kısa doldurma'}
   };
+  Object.assign(WEAPONS,{
+    laser:{name:'Odak Lazeri',cost:1700,damage:3,rate:.2,speed:1800,spread:0,pellets:1,mag:50,reload:2.8,range:800,pierce:0,auto:true,color:'#ff6d95',beam:true,armorPierce:true,desc:'Aynı hedefte 4 sn tut: vuruş 3 → 150. Işını kesmek veya hedef değiştirmek odağı sıfırlar. Zırh deler.'},
+    arc:{name:'Tesla Yayı',cost:1450,damage:38,rate:.45,speed:1100,spread:.02,pellets:1,mag:18,reload:2.1,range:600,pierce:0,auto:true,color:'#be9dff',chain:3,desc:'İlk hedeften 160 menzilde 3 ek hedefe sıçrar; her sıçrayışta %25 hasar azalır. Zırh deler.',armorPierce:true},
+    flame:{name:'Alev Püskürtücü',cost:950,damage:5,rate:.09,speed:600,spread:.15,pellets:1,mag:65,reload:2.5,range:250,pierce:1,auto:true,color:'#ff9e4f',burn:4,desc:'Kısa menzilde yaylım. 4 sn boyunca saniyede 16 yanma hasarı; tekrar isabet süreyi yeniler.'}
+  });
+  WEAPON_ORDER.push('laser','arc','flame');
+  Object.assign(UPGRADES,{
+    recovery:{name:'Ekip Rejenerasyonu',cost:220,max:3,desc:'Tüm ekibe seviye başına +0.5 can/sn yenilenme'},
+    fortification:{name:'Güçlendirilmiş Yapılar',cost:280,max:3,desc:'Mevcut ve yeni yapıların dayanıklılığına seviye başına +%20 (mayın hariç)'},
+    sentry:{name:'Taret Mühimmatı',cost:300,max:4,desc:'Tüm taretlerin hasarına seviye başına +%15'}
+  });
+  SHOP.teammed={name:'Ekip Sağlık Paketi',cost:150,heal:60,desc:'Ayaktaki bütün yaralı oyunculara anında +60 can. Yerdekileri diriltmez.'};
+  SHOP.teamammo={name:'Ekip Mühimmat Sandığı',cost:100,desc:'Tüm oyuncuların aktif ve yedek silahlarının şarjörlerini doldurur.'};
+  const newUpgrades=()=>Object.fromEntries(Object.keys(UPGRADES).map(k=>[k,0]));
+  const laserDamage=t=>Math.round(3+147*Math.pow(Math.max(0,Math.min(1,t/4)),3));
+  const APPEARANCE={
+    colors:[{id:'sage',name:'Adaçayı',value:'#8cab81'},{id:'cobalt',name:'Kobalt',value:'#629ddd'},{id:'ember',name:'Kor',value:'#dc865c'},{id:'plum',name:'Erik',value:'#b087c8'},{id:'sand',name:'Kum',value:'#d0bb8c'},{id:'rose',name:'Gül',value:'#cf809e'}],
+    outfits:[{id:'ranger',name:'İzci'},{id:'heavy',name:'Ağır Zırh'},{id:'hazmat',name:'Koruyucu Tulum'}],
+    heads:[{id:'helmet',name:'Kask'},{id:'beret',name:'Bere'},{id:'hood',name:'Kapüşon'}],
+    skins:[{id:'light',name:'Açık',value:'#e1bd99'},{id:'medium',name:'Orta',value:'#b78561'},{id:'deep',name:'Koyu',value:'#805742'}]
+  };
+  function sanitizeAppearance(input={}){
+    if(!input||typeof input!=='object')input={};
+    return Object.fromEntries(Object.entries(APPEARANCE).map(([key,values])=>[key,values.some(v=>v.id===input[key])?input[key]:values[0].id]));
+  }
+  const ZOMBIE_GUIDE={
+    walker:{night:1,role:'Temel tehdit',behavior:'Sığınağa yürür; yakındaki oyuncuya döner. Vurulursa saldıranı takip eder.',counter:'Mesafeni koru. Tabanca ve sıradan barikatlar yeterlidir.'},
+    runner:{night:2,role:'Hızlı avcı',behavior:'Yüksek hızla arayı kapatır. Her 4. gece koşucu akını gelir.',counter:'Kriyo, dikenli tel ve SMG ile yavaşlatıp temizle.'},
+    swarm:{night:3,role:'Kalabalık saldırısı',behavior:'Küçük, hızlı ve az canlıdır; sayı üstünlüğüyle çevreler.',counter:'Tesla sıçraması, alev, pompalı veya mayın kullan.'},
+    spitter:{night:4,role:'Menzilli saldırgan',behavior:'Uzaktan asit atar; yaklaşırsan geri çekilir. Asit oyuncuları, yapıları ve sığınağı yaralar.',counter:'Asitten yana kaçarak kurtul. Barikat asidi durdurur; uzun menzilli silahla avla.'},
+    armored:{night:4,role:'Zırhlı öncü',behavior:'Normal vuruşların hasarını %45 azaltır; yavaştır ama dayanıklıdır.',counter:'Magnum, Odak Lazeri, Tesla veya Keskin Taret zırhı yok sayar.'},
+    brute:{night:6,role:'Ağır baskı',behavior:'Çok canlı, yavaş bir yakın dövüş tehdididir. Yüksek tek vuruş hasarı verir.',counter:'Kriyo ile yavaşlat; lazer odağını koru veya tüfekle uzaktan vur.'},
+    sapper:{night:6,role:'Yapı yıkıcı',behavior:'Oyuncular yerine sığınağa ilerler. Önündeki yapılara 3 kat hasar verir.',counter:'Barikatlara ulaşmadan öldür. Kriyo ve Keskin Taret güçlü karşılıklardır.'},
+    healer:{night:7,role:'Destekçi',behavior:'160 menzildeki diğer zombilere saniyede 18 can geri kazandırır; kendini iyileştirmez.',counter:'Önce şifacıyı indir. Alan hasarıyla desteklediği grubu birlikte temizle.'},
+    berserker:{night:8,role:'Öfkeli avcı',behavior:'Canı yarının altına düşünce %70 hızlanır.',counter:'Yarı cana düşürdükten sonra ateşi kesme; kriyo ile kaçış aralığını koru.'},
+    boss:{night:5,role:'Gece lideri',behavior:'Her 5. gecede gelir. Çok yüksek canı ve yakın dövüş hasarı vardır.',counter:'Aynı hedefte lazer odağı biriktir. Ekibin diğer üyeleri küçük zombileri temizlesin.'}
+  };
   function nightInfo(n){return {name:n%5===0?'DEV AVCISI':n%4===0?'KOŞUCU AKINI':n>=8?'MUTASYON':n>=4?'KUŞATMA':'İLK TEMAS',boss:n%5===0,types:[...new Set(waveComp(n))].sort()};}
   const startingGold=n=>550+200*Math.max(0,n-1);
   const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
@@ -204,7 +241,7 @@
   }
 
   return {
-    WORLD, BASE, PLAYER, WEAPONS, WEAPON_ORDER, ZOMBIES, BUILD, SHOP, UPGRADES, nightInfo, startingGold,
+    WORLD, BASE, PLAYER, WEAPONS, WEAPON_ORDER, ZOMBIES, BUILD, SHOP, UPGRADES, nightInfo, startingGold, newUpgrades, laserDamage, APPEARANCE, sanitizeAppearance, ZOMBIE_GUIDE,
     MAX_PLAYERS, INTERMISSION, PLAYER_SCALE_STEP,
     playerScale, scaleZombie, waveComp, waveSpawnInterval, waveBonus,
     dist, clamp, rand, roomCode, spawnEdgePoint

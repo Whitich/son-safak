@@ -12,6 +12,7 @@ let snapPrev = null, snapNext = null, snapNextAt = 0;
 let latest = null, latestAt = 0;
 let wallsLive = [], zombiesLive = [], playersLive = [];
 let particles = [], decals = [], shake = 0;
+let arcs=[],myLaserTime=0;
 let placement = null;
 let shopOpen = false, showScore = false;
 let shopSignature = '';
@@ -50,43 +51,17 @@ function circleRect(cx, cy, r, x, y, w, h) {
 }
 
 /* ---------- AUDIO ---------- */
-let actx = null;
-function ac() {
-  if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)();
-  if (actx.state === 'suspended') actx.resume();
-  return actx;
-}
-function tone(freq, dur, type, vol, slide) {
-  if (muted) return;
-  try {
-    const a = ac(), o = a.createOscillator(), g = a.createGain();
-    o.type = type || 'square'; o.frequency.value = freq;
-    if (slide) o.frequency.exponentialRampToValueAtTime(slide, a.currentTime + dur);
-    g.gain.value = vol || 0.15;
-    g.gain.exponentialRampToValueAtTime(0.001, a.currentTime + dur);
-    o.connect(g).connect(a.destination);
-    o.start(); o.stop(a.currentTime + dur);
-  } catch (e) {}
-}
-function noiseBurst(dur, vol, freq) {
-  if (muted) return;
-  try {
-    const a = ac(), n = Math.floor(a.sampleRate * dur);
-    const buf = a.createBuffer(1, n, a.sampleRate), d = buf.getChannelData(0);
-    for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n);
-    const src = a.createBufferSource(); src.buffer = buf;
-    const f = a.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = freq || 1800;
-    const g = a.createGain(); g.gain.value = vol || 0.2;
-    g.gain.exponentialRampToValueAtTime(0.001, a.currentTime + dur);
-    src.connect(f).connect(g).connect(a.destination);
-    src.start();
-  } catch (e) {}
-}
+function ac(){return window.GameAudio?.unlock();}
+function tone(...args){window.GameAudio?.tone(...args);}
+function noiseBurst(...args){window.GameAudio?.noise(...args);}
 const SFX = {
   shoot(kind) {
     const now = performance.now();
     if (now - lastShootSfx < 45) return;
     lastShootSfx = now;
+    if(kind==='laser'){tone(180+myLaserTime*90,.16,'sawtooth',.09,240+myLaserTime*90);return;}
+    if(kind==='arc'){tone(700,.12,'square',.1,150);noiseBurst(.08,.12,5000);return;}
+    if(kind==='flame'){noiseBurst(.14,.15,700);return;}
     const v = kind === 'shotgun' ? 0.30 : kind === 'lmg' ? 0.16 : 0.2;
     noiseBurst(kind === 'shotgun' ? 0.14 : 0.07, v, kind === 'rifle' ? 3000 : 2000);
     tone(kind === 'rifle' ? 190 : kind === 'shotgun' ? 110 : 260, 0.06, 'square', v * 0.5, 70);
@@ -137,7 +112,7 @@ function connect(name, create, code) {
   intentionalClose = false;
   err('');
   ws = new WebSocket(wsUrl);
-  ws.onopen = () => ws.send(JSON.stringify({ t: 'join', name, create, code }));
+  ws.onopen = () => ws.send(JSON.stringify({ t: 'join', name, create, code, appearance:window.PlayerAppearance }));
   ws.onmessage = ev => {
     let m;
     try { m = JSON.parse(ev.data); } catch { return; }
@@ -240,6 +215,7 @@ function onSnapshot(m) {
     const d = Math.hypot(dx, dy);
     if (!snapPrev || d > 200) { pred.x = me.x; pred.y = me.y; }
     else { pred.x += dx * 0.22; pred.y += dy * 0.22; }
+    myLaserTime=me.beam?.t||0;
     myWeapon = me.w; myAmmo = me.mz; myReload = me.rl;
     myState = me.s; myBleed = me.b; myRevive = me.rv;
     ownedWeaps = me.o || ['pistol']; myUpgrades=me.u||{};
@@ -269,6 +245,8 @@ function processEvents(evs) {
         for (let i = 0; i < 14; i++) spark(e.x, e.y, '#9fb2c8');
         addDecal(e.x, e.y, 9);
         break;
+      case 'teamUpgrade':SFX.buy();feed('Ekip geliştirmesi: '+esc(e.item)+' · Seviye '+e.level+' · Herkese uygulandı','#b8dca2');break;
+      case 'arc':arcs.push({...e,t:.18});break;
       case 'blast':
         shake=Math.max(shake,5);for(let i=0;i<20;i++){const a=Math.random()*Math.PI*2;particles.push({x:e.x,y:e.y,vx:Math.cos(a)*220,vy:Math.sin(a)*220,c:'#ffd189',r:4,life:.45,t:0});}SFX.wallBreak();break;
       case 'ws':
@@ -337,7 +315,7 @@ addEventListener('keydown', e => {
   if (e.code === 'Space' && inGame && hostId === myId && phase === 'prep') { e.preventDefault(); sendMsg({ t: 'skip' }); }
   keys.add(e.code);
   if (inGame && !shopOpen) {
-    const wi = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5','Digit6','Digit7','Digit8','Digit9'].indexOf(e.code);
+    const wi = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5','Digit6','Digit7','Digit8','Digit9','Digit0'].indexOf(e.code);
     if (wi >= 0) {
       const w = G.WEAPON_ORDER[wi];
       if (w && ownedWeaps.includes(w)) sendMsg({ t: 'equip', w });
@@ -407,9 +385,9 @@ function renderShop(){
   const tabs=[['weapons','CEPHANELİK'],['build','SAVUNMA'],['support','DESTEK'],['upgrades','GELİŞTİRME']];
   let h='<div class="shopHeader"><div><small>SAHA İKMAL NOKTASI</small><h2>Hazırlan. Güçlen. Dayan.</h2></div><div class="shopBank">ORTAK KASA<strong>$'+gold+'</strong></div><button data-close="1" class="shopClose" aria-label="Marketi kapat">✕</button></div>';
   h+='<nav class="shopTabs" aria-label="Market kategorileri">'+tabs.map(([id,n])=>'<button data-tab="'+id+'" class="'+(id===shopTab?'active':'')+'">'+n+'</button>').join('')+'</nav>';
-  const hints={weapons:'Satın aldığın silahlar sende kalır. 1–9, Q / E, fare tekerleği veya alttaki cephanelikle değiştir. Yedek mermi sınırsız; şarjörünü R ile doldur.',build:'Mermilerin tüm dost yapıların üzerinden geçer. Kapı oyunculara açık, zombilere kapalıdır. Yapıyı seçip zemine bir kez tıkla; B / Esc iptal eder.',support:'Tamir, yeni yapıdan daha ucuzdur. Hasarlı en yakın yapıyı onarır (420 menzil). Her gece sonunda bir kişi ayaktaysa herkes tam canla döner.',upgrades:'Kişisel geliştirmeler tüm silahlarında geçerlidir ve ölümden sonra da kalır. Her yeni seviyenin bedeli artar.'};
+  const hints={weapons:'Satın aldığın silahlar sende kalır. 1–9 / 0, Q / E, fare tekerleği veya alttaki cephanelikle değiştir. Yedek mermi sınırsız; şarjörünü R ile doldur.',build:'Mermilerin tüm dost yapıların üzerinden geçer. Kapı oyunculara açık, zombilere kapalıdır. Yapıyı seçip zemine bir kez tıkla; B / Esc iptal eder.',support:'Tamir, yeni yapıdan daha ucuzdur. Hasarlı en yakın yapıyı onarır (420 menzil). Her gece sonunda bir kişi ayaktaysa herkes tam canla döner.',upgrades:'Ekip geliştirmeleri ortak kasadan bir kez alınır, odadaki HERKESE uygulanır. Sonradan katılanlar da aynı seviyeyi alır. Her yeni seviyenin bedeli artar.'};
   h+='<p class="shopIntro">'+hints[shopTab]+'</p><div class="shopGrid">';
-  const ids=shopTab==='weapons'?G.WEAPON_ORDER:shopTab==='build'?Object.keys(G.BUILD):shopTab==='support'?['medkit','ammo','wallrepair','baserepair']:Object.keys(G.UPGRADES);
+  const ids=shopTab==='weapons'?G.WEAPON_ORDER:shopTab==='build'?Object.keys(G.BUILD):shopTab==='support'?['medkit','ammo','wallrepair','baserepair','teammed','teamammo']:Object.keys(G.UPGRADES);
   for(const id of ids){
     const d=shopTab==='weapons'?G.WEAPONS[id]:shopTab==='build'?G.BUILD[id]:shopTab==='support'?G.SHOP[id]:G.UPGRADES[id];
     const owned=shopTab==='weapons'&&ownedWeaps.includes(id),active=owned&&myWeapon===id,level=myUpgrades[id]||0;
@@ -417,12 +395,24 @@ function renderShop(){
     const price=owned?0:d.cost*(shopTab==='upgrades'?level+1:1),can=gold>=price&&myState==='alive'&&!capped;
     let detail=d.desc|| (id==='medkit'?'Anında +'+d.heal+' can':id==='ammo'?'Aktif silahın şarjörünü hemen doldur':id==='wallrepair'?'En yakın hasarlı yapıya +'+d.heal+' can · 420 menzil':'Sığınağa +'+d.heal+' can');
     let stats='';
-    if(shopTab==='weapons'){const dps=Math.round(d.damage*d.pellets/d.rate);stats='<div class="itemStats"><span>'+d.damage+(d.pellets>1?' × '+d.pellets:'')+'<small>HASAR</small></span><span>'+d.mag+'<small>ŞARJÖR</small></span><span>'+d.range+'<small>MENZİL</small></span></div>';detail+=' · '+dps+' teorik hasar/sn';}
+    if(shopTab==='weapons'){const dps=Math.round(d.damage*d.pellets/d.rate);stats='<div class="itemStats"><span>'+d.damage+(d.pellets>1?' × '+d.pellets:'')+'<small>HASAR</small></span><span>'+d.mag+'<small>ŞARJÖR</small></span><span>'+d.range+'<small>MENZİL</small></span></div>';detail+=d.beam?' · 0.2 sn başına 3–150 hasar':' · '+dps+' teorik hasar/sn';}
     if(shopTab==='build')stats='<div class="itemStats"><span>'+d.hp+'<small>DAYANIKLILIK</small></span><span>'+(d.turret?d.range:d.trap?'TUZAK':'SAVUNMA')+'<small>'+(d.turret?'MENZİL':'TÜR')+'</small></span></div>';
     if(shopTab==='upgrades')stats='<div class="levelTrack">'+Array.from({length:d.max},(_,i)=>'<i class="'+(i<level?'on':'')+'"></i>').join('')+'<span>'+level+' / '+d.max+'</span></div>';
+    const facts=[];
+    if(shopTab==='weapons'){
+      facts.push('Doldurma: '+(d.reload*(1-.1*(myUpgrades.handling||0))).toFixed(2)+' sn','Ateş aralığı: '+d.rate+' sn','İsabet başına: '+(d.beam?'3 → 150':+(d.damage*(1+.1*(myUpgrades.power||0))).toFixed(1))+' × '+d.pellets,'Delme: '+(d.pierce+1)+' hedef',d.armorPierce?'Zırhı yok sayar':'Zırh hasarı azaltabilir','Menzil: '+d.range+' · '+(d.beam?'Anlık ışın':'Mermi hızı: '+d.speed));
+    }else if(shopTab==='build'){
+      facts.push('Can: '+Math.round(d.hp*(id==='mine'?1:1+.2*(myUpgrades.fortification||0))),'Söküm iadesi: en fazla $'+Math.floor(d.cost*.4));
+      if(d.turret)facts.push('Vuruş: '+(d.damage*(1+.15*(myUpgrades.sentry||0))).toFixed(1),'Atış aralığı: '+d.rate+' sn','Menzil: '+d.range,'Delme: '+((d.pierce||0)+1)+' hedef');
+      else if(id==='mine')facts.push('Patlama: '+d.damage+' hasar','Yarıçap: '+d.splash+' · tetik: 65');
+      else if(id==='spikes')facts.push('Hasar: '+d.dps+'/sn','Yavaşlatma: %50','Aşınma: temas sırasında 8 can/sn');
+      else facts.push(d.solid?'Oyuncu ve zombiyi durdurur':'Oyuncular geçer, zombiler durur','Dost mermileri geçer; asidi durdurur');
+    }else if(shopTab==='upgrades')facts.push('Etki: bütün ekip','Yeni katılanlara da uygulanır','En çok '+d.max+' seviye','Sonraki seviye: $'+(d.cost*(level+1)));
+    else facts.push('Bedel: $'+d.cost,(id.startsWith('team')?'Etki: bütün ekip':id==='baserepair'?'Etki: ortak sığınak':id==='wallrepair'?'Etki: en yakın hasarlı yapı':'Etki: satın alan oyuncu'));
+    stats+='<ul class="equipmentFacts">'+facts.map(f=>'<li>'+f+'</li>').join('')+'</ul>';
     const attr=shopTab==='build'?'data-place':'data-buy';
     const label=active?'KUŞANILDI':capped?'TAM SEVİYE':owned?'KUŞAN':!can&&gold<price?'$'+price+' · PARA YETERSİZ':shopTab==='build'?'YERLEŞTİR · $'+price:shopTab==='upgrades'?'GELİŞTİR · $'+price:'SATIN AL · $'+price;
-    h+='<article class="marketCard '+(active?'equipped':'')+'"><div class="itemTop"><span class="itemIcon">'+(shopTab==='weapons'?'⌁':shopTab==='build'?'▥':shopTab==='upgrades'?'↑':'+')+'</span><span class="itemBadge">'+(owned?'ENVANTERİNDE':shopTab==='upgrades'?'KALICI':shopTab==='build'?'ORTAK SAVUNMA':shopTab==='weapons'?'KALICI SİLAH':'TEK KULLANIM')+'</span></div><h3>'+d.name+'</h3><p>'+detail+'</p>'+stats+'<button '+attr+'="'+id+'" '+(!can||active?'disabled':'')+'>'+label+'</button></article>';
+    h+='<article class="marketCard '+(active?'equipped':'')+'"><div class="itemTop"><span class="itemIcon">'+(shopTab==='weapons'?'⌁':shopTab==='build'?'▥':shopTab==='upgrades'?'↑':'+')+'</span><span class="itemBadge">'+(owned?'ENVANTERİNDE':shopTab==='upgrades'?'TÜM EKİP':shopTab==='build'?'ORTAK SAVUNMA':shopTab==='weapons'?'KALICI SİLAH':'TEK KULLANIM')+'</span></div><h3>'+d.name+'</h3><p>'+detail+'</p>'+stats+'<button '+attr+'="'+id+'" '+(!can||active?'disabled':'')+'>'+label+'</button></article>';
   }
   h+='</div><footer class="shopFooter"><span>Gece market açıkken de devam eder.</span><span><kbd>B</kbd> kapat / inşayı iptal · <kbd>X</kbd> imleçteki yapıyı sök (%40 iade)</span></footer>';
   shopEl.innerHTML=h;
@@ -438,7 +428,7 @@ shopEl.addEventListener('click',e=>{
 });
 function renderHotbar(){
   const sig=JSON.stringify([myWeapon,ownedWeaps]);if(sig===hotbarSignature)return;hotbarSignature=sig;
-  $('weaponBelt').innerHTML=G.WEAPON_ORDER.map((id,i)=>'<button data-equip="'+id+'" '+(!ownedWeaps.includes(id)?'disabled':'')+' class="'+(id===myWeapon?'selected':'')+'" title="'+G.WEAPONS[id].name+'"><kbd>'+(i+1)+'</kbd><span>'+G.WEAPONS[id].name+'</span></button>').join('');
+  $('weaponBelt').innerHTML=G.WEAPON_ORDER.map((id,i)=>'<button data-equip="'+id+'" '+(!ownedWeaps.includes(id)?'disabled':'')+' class="'+(id===myWeapon?'selected':'')+'" title="'+G.WEAPONS[id].name+'"><kbd>'+(i<9?i+1:i===9?'0':'Q/E')+'</kbd><span>'+G.WEAPONS[id].name+'</span></button>').join('');
 }
 $('weaponBelt').addEventListener('click',e=>{const b=e.target.closest('[data-equip]');if(b){cancelBuild();sendMsg({t:'equip',w:b.dataset.equip});}});
 
@@ -485,6 +475,8 @@ function updateHud() {
 
   const w = G.WEAPONS[myWeapon] || G.WEAPONS.pistol;
   $('weapName').textContent = w.name;
+  $('laserFocus').classList.toggle('hidden',myWeapon!=='laser');
+  $('laserFocus').textContent='ODAK '+myLaserTime.toFixed(1)+' / 4 sn · '+Math.round(G.laserDamage(myLaserTime)*(1+.1*(myUpgrades.power||0)))+' HASAR / 0.2 sn';
   const am = $('ammoVal');
   if (myReload > 0) { am.innerHTML = 'ŞARJÖR…'; am.className = 'am low'; }
   else { am.innerHTML = myAmmo + '<small>/' + w.mag + '</small>'; am.className = 'am' + (myAmmo <= w.mag * 0.25 ? ' low' : ''); }
@@ -575,7 +567,7 @@ function loop(now) {
     sendMsg({ t: 'in', mx, my, a, f: fire, r: rel });
     lastSend = now; fireSent = fire; relSent = rel;
   }
-  if (fire) {
+  if (fire && myState==='alive' && myAmmo>0 && myReload<=0) {
     const w = G.WEAPONS[myWeapon];
     if (now - lastShootSfx > (w ? w.rate * 1000 - 15 : 0)) SFX.shoot(myWeapon);
   }
@@ -611,6 +603,7 @@ function blocked(x, y, r) {
 }
 
 function updateParticles(dt) {
+  for(const a of arcs)a.t-=dt;arcs=arcs.filter(a=>a.t>0);
   for (const p of particles) {
     p.t += dt;
     p.x += p.vx * dt; p.y += p.vy * dt;
@@ -684,6 +677,12 @@ function render(now) {
     else drawPlayer(d.e, now);
   }
 
+  for(const p of interpPlayers){if(!p.beam||p.s!=='alive')continue;
+    const x=p.i===myId?pred.x:p.x,y=p.i===myId?pred.y:p.y,charge=p.beam.t/4;
+    ctx.save();ctx.strokeStyle=charge>.8?'#fff1c4':'#ff669a';ctx.shadowColor=ctx.strokeStyle;ctx.shadowBlur=14+charge*12;ctx.lineWidth=2+charge*5;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(p.beam.x,p.beam.y);ctx.stroke();ctx.lineWidth=1;ctx.strokeStyle='#fff5eb';ctx.stroke();
+    if(p.beam.target){ctx.fillStyle='#ffe5d3';ctx.font='bold 13px Segoe UI';ctx.textAlign='center';ctx.fillText(p.beam.d+' / vuruş',p.beam.x,p.beam.y-35);ctx.beginPath();ctx.arc(p.beam.x,p.beam.y,7+charge*8,0,Math.PI*2);ctx.stroke();}ctx.restore();
+  }
+  for(const a of arcs){ctx.save();ctx.globalAlpha=a.t/.18;ctx.strokeStyle='#c5a7ff';ctx.shadowColor='#b08bff';ctx.shadowBlur=15;ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo((a.x+a.tx)/2+Math.sin(now)*10,(a.y+a.ty)/2+Math.cos(now)*10);ctx.lineTo(a.tx,a.ty);ctx.stroke();ctx.restore();}
   // bullets
   const extrapol = G.clamp((now - snapNextAt) / 1000, 0, 0.08);
   if (latest) {
@@ -903,6 +902,7 @@ function drawPlayer(p, now) {
   ctx.fillStyle = 'rgba(0,0,0,.35)';
   ctx.beginPath(); ctx.ellipse(x, y + R * 0.5, R * 0.95, R * 0.4, 0, 0, 7); ctx.fill();
 
+  const ap=G.sanitizeAppearance(p.ap),uniform=G.APPEARANCE.colors.find(v=>v.id===ap.colors).value,skin=G.APPEARANCE.skins.find(v=>v.id===ap.skins).value;
   const down = p.s === 'down';
   const aim = isMe ? Math.atan2(mouseWorld().y - y, mouseWorld().x - x) : p.a;
 
@@ -940,9 +940,12 @@ function drawPlayer(p, now) {
 
   // Helmet, shoulders and directional weapon silhouette.
   ctx.save();ctx.translate(x,y);ctx.rotate(aim);
-  ctx.fillStyle=down?'#69434b':'#263d3e';ctx.fillRect(-9,-16,16,32);
-  ctx.fillStyle='#d5b592';ctx.beginPath();ctx.arc(1,0,9,0,Math.PI*2);ctx.fill();
-  ctx.fillStyle=down?'#594248':'#788c72';ctx.beginPath();ctx.arc(-2,0,9,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle=down?'#69434b':uniform;ctx.fillRect(-9,-16,16,32);
+  ctx.fillStyle=skin;ctx.beginPath();ctx.arc(1,0,9,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle=down?'#594248':ap.heads==='beret'?'#773f50':uniform;ctx.beginPath();ctx.arc(-2,0,ap.heads==='hood'?11:9,0,Math.PI*2);ctx.fill();
+  if(ap.outfits==='heavy'){ctx.fillStyle='#99afb1';ctx.fillRect(-10,-13,8,26);}
+  if(ap.outfits==='hazmat'){ctx.fillStyle='#e0c866';ctx.fillRect(-9,-14,7,28);ctx.fillStyle='#69c6ba';ctx.fillRect(3,-7,5,14);}
+  if(ap.heads==='helmet'){ctx.strokeStyle='#2e4545';ctx.lineWidth=3;ctx.beginPath();ctx.arc(-2,0,9,-1.7,1.7);ctx.stroke();}
   ctx.fillStyle='#111b20';ctx.fillRect(8,5,25,6);ctx.fillStyle='#9baaa8';ctx.fillRect(23,6,12,3);
   ctx.restore();
   // name + hp
@@ -1012,9 +1015,10 @@ function drawThreatIndicators(zombies, s) {
 $('soloBtn').onclick = () => { quickStart = true; $('createBtn').click(); };
 $('marketBtn').onclick = toggleShop;
 $('waveBtn').onclick = () => { if(hostId===myId && phase==='prep') sendMsg({t:'skip'}); };
-$('muteBtn').onclick = () => { muted=!muted; $('muteBtn').textContent=muted?'SES KAPALI':'SES AÇIK'; };
+$('muteBtn').onclick = () => {window.GameAudio?.toggle();};
 $('nameInput').value = localStorage.getItem('zbd_name') || '';
 $('createBtn').onclick = () => {
+  ac();
   const name = ($('nameInput').value || '').trim() || 'Kahraman';
   localStorage.setItem('zbd_name', name);
   $('createBtn').disabled = true;
@@ -1022,6 +1026,7 @@ $('createBtn').onclick = () => {
   setTimeout(() => { $('createBtn').disabled = false; }, 1200);
 };
 $('joinBtn').onclick = () => {
+  ac();
   const name = ($('nameInput').value || '').trim() || 'Kahraman';
   localStorage.setItem('zbd_name', name);
   const code = $('codeInput').value.trim().toUpperCase();

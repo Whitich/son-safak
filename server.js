@@ -6,7 +6,7 @@ const { WebSocketServer } = require('ws');
 const C = require('./public/game-core.js');
 
 const PORT = process.env.PORT || 3000;
-const VERSION = '2.0.0';
+const VERSION = '3.0.0';
 const TICK = 1 / 30;
 
 const app = express();
@@ -39,6 +39,7 @@ class Room {
     this.wave = 0;
     this.timer = 45;
     this.gold = 0;
+    this.upgrades=C.newUpgrades();
     this.base = { x: C.BASE.x, y: C.BASE.y, r: C.BASE.r, hp: C.BASE.hp, maxHp: C.BASE.hp };
     this.walls = [];
     this.zombies = [];
@@ -50,19 +51,20 @@ class Room {
     this.nextZid = 1;
   }
 
-  addPlayer(ws, name, color) {
+  addPlayer(ws, name, color, appearance) {
     const id = nextPlayerId++;
     const ang = Math.random() * Math.PI * 2;
     const p = {
-      id, ws, name: String(name || 'Oyuncu').slice(0, 16), color,
+      id, ws, name: String(name || 'Oyuncu').slice(0, 16), color, appearance:C.sanitizeAppearance(appearance),
       x: this.base.x + Math.cos(ang) * (this.base.r + 70),
       y: this.base.y + Math.sin(ang) * (this.base.r + 70),
-      a: 0, hp: C.PLAYER.hp, maxHp: C.PLAYER.hp, r: C.PLAYER.r,
+      a: 0, hp: C.PLAYER.hp+25*this.upgrades.vitality, maxHp: C.PLAYER.hp+25*this.upgrades.vitality, r: C.PLAYER.r,
       money: 0, weapon: 'pistol', owned: ['pistol'],
-      ammo: C.WEAPONS.pistol.mag, ammoStore: {}, upgrades: {vitality:0,mobility:0,power:0,handling:0},
+      ammo: C.WEAPONS.pistol.mag, ammoStore: {}, upgrades: this.upgrades, focusId:0, focusTime:0, beam:null,
       reloadT: 0, fireT: 0, state: 'alive', bleed: 0, reviveProg: 0,
       kills: 0, mx: 0, my: 0, aim: 0, fire: false, rel: false
     };
+    if(appearance&&typeof appearance==='object')p.color=C.APPEARANCE.colors.find(v=>v.id===p.appearance.colors).value;
     this.players.set(id, p);
     if (!this.hostId) this.hostId = id;
     if (this.state === 'playing') {
@@ -100,6 +102,7 @@ class Room {
     this.wave = 0;
     this.timer = 45;
     this.gold = C.startingGold(this.players.size);
+    this.upgrades=C.newUpgrades();
     this.base.hp = this.base.maxHp;
     this.walls = [];
     this.zombies = [];
@@ -110,7 +113,7 @@ class Room {
       p.hp = p.maxHp = C.PLAYER.hp;
       p.money = C.PLAYER.startMoney;
       p.weapon = 'pistol';
-      p.owned = ['pistol']; p.ammoStore = {}; p.upgrades = {vitality:0,mobility:0,power:0,handling:0};
+      p.owned = ['pistol']; p.ammoStore = {}; p.upgrades = this.upgrades; p.focusId=0;p.focusTime=0;p.beam=null;
       p.ammo = C.WEAPONS.pistol.mag;
       p.reloadT = 0; p.fireT = 0; p.state = 'alive'; p.bleed = 0;
       p.reviveProg = 0; p.kills = 0; p.mx = p.my = 0; p.fire = p.rel = p.firedLatch = false;
@@ -121,7 +124,7 @@ class Room {
   }
 
   build(kind, x, y, playerId) {
-    const def = C.BUILD[kind];
+    const def = Object.hasOwn(C.BUILD,kind)?C.BUILD[kind]:null;
     const builder = this.players.get(playerId);
     if (!def || !builder || builder.state !== 'alive' || this.state !== 'playing') return false;
     if (this.gold < def.cost) return false;
@@ -145,6 +148,7 @@ class Room {
       x, y, w: def.w, h: def.h, hp: def.hp, maxHp: def.hp,
       kind, turretT: 0, angle: 0
     };
+    if(kind!=='mine'){wall.maxHp=Math.round(def.hp*(1+.2*this.upgrades.fortification));wall.hp=wall.maxHp;}
     if (def.turret) wall.range = def.range;
     this.walls.push(wall);
     this.events.push({ e: 'bld', x, y, k: kind });
@@ -155,7 +159,7 @@ class Room {
     const p = this.players.get(playerId);
     if (!p || p.state !== 'alive') return false;
     if (this.state !== 'playing') return false;
-    if (C.WEAPONS[item]) {
+    if (Object.hasOwn(C.WEAPONS,item)) {
       const def = C.WEAPONS[item];
       if (p.owned.includes(item)) return this.equip(p,item);
       if (this.gold < def.cost) return false;
@@ -165,16 +169,26 @@ class Room {
       this.events.push({ e: 'buy', id: p.id, item: def.name });
       return true;
     }
-    if (C.UPGRADES[item]) {
-      const def=C.UPGRADES[item], level=p.upgrades[item]||0, price=def.cost*(level+1);
-      if(level>=def.max || this.gold<price) return false;
-      this.gold-=price;p.upgrades[item]=level+1;
-      if(item==='vitality'){p.maxHp+=25;p.hp=Math.min(p.maxHp,p.hp+25);}
-      this.events.push({e:'buy',id:p.id,item:def.name+' '+(level+1)});return true;
+    if (Object.hasOwn(C.UPGRADES,item)) {
+      const def=C.UPGRADES[item],level=this.upgrades[item]||0,price=def.cost*(level+1);
+      if(level>=def.max||this.gold<price)return false;
+      this.gold-=price;this.upgrades[item]=level+1;
+      for(const ally of this.players.values()){
+        ally.upgrades=this.upgrades;
+        if(item==='vitality'){ally.maxHp=C.PLAYER.hp+25*this.upgrades.vitality;if(ally.state==='alive')ally.hp=Math.min(ally.maxHp,ally.hp+25);}
+      }
+      if(item==='fortification')for(const w of this.walls){if(w.kind==='mine')continue;const frac=w.hp/w.maxHp;w.maxHp=Math.round(C.BUILD[w.kind].hp*(1+.2*this.upgrades.fortification));w.hp=w.maxHp*frac;}
+      this.events.push({e:'teamUpgrade',item:def.name,level:level+1});return true;
     }
-    const def = C.SHOP[item];
+    const def = Object.hasOwn(C.SHOP,item)?C.SHOP[item]:null;
     if (!def || this.gold < def.cost) return false;
-    if (item === 'medkit') {
+    if(item==='teammed'){
+      const allies=[...this.players.values()].filter(p=>p.state==='alive'&&p.hp<p.maxHp);if(!allies.length)return false;
+      for(const ally of allies)ally.hp=Math.min(ally.maxHp,ally.hp+def.heal);
+    } else if(item==='teamammo'){
+      if(![...this.players.values()].some(p=>p.ammo<C.WEAPONS[p.weapon].mag||p.reloadT>0||Object.entries(p.ammoStore).some(([w,a])=>a<C.WEAPONS[w].mag)))return false;
+      for(const ally of this.players.values()){ally.ammoStore={};ally.ammo=C.WEAPONS[ally.weapon].mag;ally.reloadT=0;}
+    } else if (item === 'medkit') {
       if (p.hp >= p.maxHp) return false;
       p.hp = Math.min(p.maxHp, p.hp + def.heal);
     } else if (item === 'ammo') {
@@ -200,8 +214,9 @@ class Room {
   }
 
   equip(p, weapon) {
-    if(!p || p.state!=='alive' || !p.owned.includes(weapon) || !C.WEAPONS[weapon]) return false;
+    if(!p || p.state!=='alive' || !p.owned.includes(weapon) || !Object.hasOwn(C.WEAPONS,weapon)) return false;
     if(p.weapon===weapon) return true;
+    p.focusId=0;p.focusTime=0;p.beam=null;
     p.ammoStore[p.weapon]=p.ammo;
     p.weapon=weapon;p.ammo=p.ammoStore[weapon] ?? C.WEAPONS[weapon].mag;
     p.reloadT=0;p.fireT=Math.max(.2,p.fireT);p.firedLatch=false;
@@ -316,6 +331,8 @@ class Room {
   updatePlayers(dt) {
     for (const p of this.players.values()) {
       p.fireT -= dt;
+      p.beam=null;
+      if(!p.fire||p.weapon!=='laser'||p.reloadT>0||p.state!=='alive'){p.focusId=0;p.focusTime=0;}
       if (p.reloadT > 0) {
         p.reloadT -= dt;
         if (p.reloadT <= 0) p.reloadT = 0, p.ammo = C.WEAPONS[p.weapon].mag;
@@ -347,7 +364,7 @@ class Room {
       }
       if (p.state !== 'alive') continue;
 
-      p.hp = Math.min(p.maxHp, p.hp + C.PLAYER.regen * dt);
+      p.hp = Math.min(p.maxHp, p.hp + (C.PLAYER.regen+.5*(p.upgrades.recovery||0)) * dt);
 
       const len = Math.hypot(p.mx, p.my) || 1;
       const spd = C.PLAYER.speed * (1+.08*(p.upgrades.mobility||0)) * dt;
@@ -360,6 +377,7 @@ class Room {
 
       const w = C.WEAPONS[p.weapon];
       if (p.rel && p.reloadT <= 0 && p.ammo < w.mag) this.startReload(p);
+      if(w.beam){this.updateLaser(p,w,dt);continue;}
       if (p.fire && p.fireT <= 0 && p.reloadT <= 0 && p.ammo > 0) {
         if (w.auto || !p.firedLatch) {
           this.shoot(p, w);
@@ -376,6 +394,19 @@ class Room {
     this.events.push({ e: 'rl', id: p.id });
   }
 
+  updateLaser(p,w,dt){
+    if(!p.fire||p.state!=='alive'||p.reloadT>0||p.ammo<=0){p.focusId=0;p.focusTime=0;return;}
+    const dx=Math.cos(p.a),dy=Math.sin(p.a);let target=null,best=w.range;
+    for(const z of this.zombies){if(z.hp<=0)continue;const along=(z.x-p.x)*dx+(z.y-p.y)*dy;
+      const across=Math.abs((z.x-p.x)*dy-(z.y-p.y)*dx);
+      if(along>0&&along<best&&across<z.r+6){target=z;best=along;}}
+    if(target){if(p.focusId===target.i)p.focusTime=Math.min(4,p.focusTime+dt);else{p.focusId=target.i;p.focusTime=0;}}
+    else{p.focusId=0;p.focusTime=0;}
+    p.beam={x:target?target.x:p.x+dx*w.range,y:target?target.y:p.y+dy*w.range,t:+p.focusTime.toFixed(2),d:Math.round(C.laserDamage(p.focusTime)*(1+.1*p.upgrades.power)),target:target?target.i:0};
+    if(p.fireT<=0){p.fireT=w.rate;p.ammo--;if(target)this.hitZombie(target,p.beam.d,p.id,true);
+      if(p.ammo<=0)this.startReload(p);}
+  }
+
   shoot(p, w) {
     p.fireT = w.rate;
     p.ammo--;
@@ -385,7 +416,7 @@ class Room {
         x: p.x + Math.cos(p.a) * (p.r + 6),
         y: p.y + Math.sin(p.a) * (p.r + 6),
         vx: Math.cos(a) * w.speed, vy: Math.sin(a) * w.speed,
-        dmg: w.damage*(1+.1*(p.upgrades.power||0)), slow:w.slow, splash:w.splash, armorPierce:w.armorPierce, hit:new Set(), pierce: w.pierce, life: w.range / w.speed,
+        dmg: w.damage*(1+.1*(p.upgrades.power||0)), slow:w.slow, splash:w.splash, chain:w.chain, burn:w.burn, armorPierce:w.armorPierce, hit:new Set(), pierce: w.pierce, life: w.range / w.speed,
         owner: p.id, color:w.color, a
       });
     }
@@ -419,6 +450,11 @@ class Room {
         b.hit.add(z.i);
         if(b.splash){this.blast(ox+dx*t,oy+dy*t,b.splash,b.dmg,b.owner);dead=true;break;}
         this.hitZombie(z,b.dmg,b.owner,b.armorPierce,b.slow);
+        if(b.burn&&z.hp>0){z.burnT=b.burn;z.burnOwner=b.owner;z.burnTick ||= 0;}
+        if(b.chain){let from=z;const seen=new Set([z.i]);for(let i=0;i<b.chain;i++){
+          const next=this.zombies.filter(t=>t.hp>0&&!seen.has(t.i)&&Math.hypot(t.x-from.x,t.y-from.y)<=160).sort((a,b)=>Math.hypot(a.x-from.x,a.y-from.y)-Math.hypot(b.x-from.x,b.y-from.y))[0];
+          if(!next)break;this.events.push({e:'arc',x:from.x,y:from.y,tx:next.x,ty:next.y});seen.add(next.i);this.hitZombie(next,b.dmg*Math.pow(.75,i+1),b.owner,true);from=next;
+        }}
         if(b.pierce>0)b.pierce--;else {dead=true;break;}
       }
       if(!dead&&b.life<=0&&b.splash)this.blast(b.x,b.y,b.splash,b.dmg,b.owner);
@@ -496,7 +532,7 @@ class Room {
       this.bullets.push({
         x: w.x + Math.cos(a) * 26, y: w.y + Math.sin(a) * 26,
         vx: Math.cos(a) * def.bulletSpeed, vy: Math.sin(a) * def.bulletSpeed,
-        dmg: def.damage, pierce: def.pierce||0, slow:def.slow, armorPierce:def.armorPierce, life: def.range / def.bulletSpeed,
+        dmg: def.damage*(1+.15*this.upgrades.sentry), pierce: def.pierce||0, slow:def.slow, armorPierce:def.armorPierce, life: def.range / def.bulletSpeed,
         owner: -1, color:def.slow?'#8fe8ff':def.armorPierce?'#d4aeff':'#a8ffcf', a
       });
     }
@@ -513,6 +549,7 @@ class Room {
     }
     for (const z of this.zombies) {
       if(z.hp<=0)continue;
+      if(z.burnT>0){z.burnT=Math.max(0,z.burnT-dt);z.burnTick=(z.burnTick||0)+dt;if(z.burnTick>=.5){z.burnTick-=.5;this.hitZombie(z,8*(1+.1*this.upgrades.power),z.burnOwner,true);}if(z.hp<=0)continue;}
       const zd=C.ZOMBIES[z.type];
       z.slowT=Math.max(0,(z.slowT||0)-dt);
       if(zd.healAura)for(const ally of this.zombies)if(ally!==z&&ally.hp>0&&Math.hypot(ally.x-z.x,ally.y-z.y)<160)ally.hp=Math.min(ally.maxHp,ally.hp+zd.healAura*dt);
@@ -631,11 +668,11 @@ class Room {
         hp: Math.max(0, Math.round(p.hp)), mh: p.maxHp, s: p.state,
         w: p.weapon, mz: p.ammo, rl: p.reloadT > 0 ? +p.reloadT.toFixed(1) : 0,
         b: p.state === 'down' ? +p.bleed.toFixed(1) : 0,
-        rv: +p.reviveProg.toFixed(1), k: p.kills, n: p.name, c: p.color, o: p.owned, u:p.upgrades
+        rv: +p.reviveProg.toFixed(1), k: p.kills, n: p.name, c: p.color, o: p.owned, u:this.upgrades, ap:p.appearance, beam:p.beam
       });
     }
     for (const z of this.zombies) {
-      Z.push({ i: z.i, x: +z.x.toFixed(1), y: +z.y.toFixed(1), hp: Math.max(0, Math.round(z.hp)), mh: z.maxHp, t: z.type });
+      Z.push({ i: z.i, x: +z.x.toFixed(1), y: +z.y.toFixed(1), hp: Math.max(0, Math.round(z.hp)), mh: z.maxHp, t: z.type, burn:z.burnT>0 });
     }
     for (const b of this.bullets) B.push({ x: +b.x.toFixed(1), y: +b.y.toFixed(1), a: +b.a.toFixed(2), o: b.owner, v:Math.round(Math.hypot(b.vx,b.vy)), c:b.color });
     for (const a of this.acids) A.push({ x: +a.x.toFixed(1), y: +a.y.toFixed(1) });
@@ -679,7 +716,7 @@ wss.on('connection', ws => {
       const colors = ['#ff728b', '#68a8ff', '#69d990', '#ffd166', '#bd87ff', '#ff9d68', '#55dfc2', '#f18ab9'];
       const used = new Set([...room.players.values()].map(p => p.color));
       const color = colors.find(c => !used.has(c)) || colors[room.players.size % colors.length];
-      const p = room.addPlayer(ws, msg.name, color);
+      const p = room.addPlayer(ws, msg.name, color, msg.appearance);
       joined = { room, id: p.id };
       send(ws, { t: 'joined', id: p.id, code: room.code, state: room.state });
       room.broadcast({ t: 'lobby', host: room.hostId, state: room.state, players: lobbyList(room) });

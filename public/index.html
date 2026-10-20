@@ -181,7 +181,7 @@
   #roomChip {top:72px;}
   @media(max-width:760px) {#baseBox{width:220px;top:65px}#roomChip{top:120px}#feed{top:145px;max-width:220px}.title{letter-spacing:4px}.card{min-width:320px;padding:16px}#hpBox{width:170px}#actionDock{bottom:90px}#actionDock button{font-size:9px;padding:8px}#goldBox .g{font-size:20px}#shop{top:145px;width:290px}#gameBrand{font-size:14px}.menuStory{font-size:13px}}
 </style>
-<link rel="stylesheet" href="armory.css">
+<link rel="stylesheet" href="armory.css"><link rel="stylesheet" href="menu-content.css">
 </head>
 <body>
 
@@ -191,7 +191,7 @@
 <div id="menu" class="screen">
   <div class="eyebrow">KARANTİNA BÖLGESİ / 07</div><div class="title">SON <span>ŞAFAK</span></div><div class="menuStory">Sokaklar düştü. Son sığınak hâlâ ayakta.<br>Bu gece, savunma hattı sensin.</div>
   <div class="subtitle">Güneş doğana kadar. Savunmanı kur. Hayatta kal.</div>
-  <div class="card">
+  <div class="menuGrid"><section class="customizer" aria-label="Karakter özelleştirme"><div class="customizerHead"><small>SAHA OPERATÖRÜ</small><h2>Karakterini oluştur</h2></div><div id="characterPreview"></div><div id="appearanceOptions"></div><p class="cosmeticHint">Görünüm seçimi kozmetiktir; savaş özelliklerini değiştirmez.</p></section><div class="card" id="connectionCard">
     <h3>ÇAĞRI İŞARETİN</h3>
     <input type="text" id="nameInput" maxlength="16" placeholder="Oyuncu adın" value="">
     <button id="soloBtn">TEK BAŞINA HAYATTA KAL →</button><h3>VEYA EKİBİNİ TOPLA</h3>
@@ -202,14 +202,17 @@
       <input type="text" id="codeInput" maxlength="5" placeholder="Oda kodu" style="text-transform:uppercase">
       <button id="joinBtn" class="secondary">Katıl</button>
     </div>
+    <button id="catalogBtn" class="secondary">ZOMBİ KATALOĞU · 10 TÜR</button>
+    <div class="soundSettings"><button id="soundTestBtn" class="secondary">♫ Sesi dene</button><label>SES <input type="range" id="volumeInput" aria-label="Ses seviyesi" min="0" max="100" value="70"><span id="volumeValue">70%</span></label></div><div id="audioStatus" role="status">SES İLK TIKLAMADA AÇILIR</div>
     <div id="err"></div>
     <div class="hint">
       Kurduğun oda kodunu arkadaşlarına ver, onlar bu ekrandan katılsın.<br>
       <kbd>WASD</kbd> hareket · fare nişan · <kbd>Tık</kbd> ateş · <kbd>R</kbd> şarjör<br>
-      <kbd>B</kbd> market · <kbd>1–9</kbd> / <kbd>Q E</kbd> silah değiştir · <kbd>Tab</kbd> skor
+      <kbd>B</kbd> market · <kbd>1–9 / 0</kbd> / <kbd>Q E</kbd> silah değiştir · <kbd>Tab</kbd> skor
     </div>
   </div>
-</div>
+</div></div>
+<div id="zombieCatalog" class="hidden" role="dialog" aria-modal="true" aria-label="Zombi kataloğu"><div class="catalogShell"><header><div><small>KARANTİNA İSTİHBARATI</small><h2>Zombi Kataloğu</h2><p>Temel değerler gösterilir; can ve hasar geceyle ve ekip büyüklüğüyle artar.</p></div><button id="closeCatalog" class="secondary" aria-label="Kataloğu kapat">✕</button></header><div id="catalogList"></div></div></div>
 
 <!-- LOBBY -->
 <div id="lobby" class="screen hidden">
@@ -242,7 +245,7 @@
   </div>
   <div id="ammoBox" class="hudPanel">
     <div class="wn" id="weapName">Tabanca</div>
-    <div class="am" id="ammoVal"></div>
+    <div class="am" id="ammoVal"></div><div id="laserFocus" class="hidden"></div>
   </div>
   <div id="roomChip"></div>
   <div id="centerMsg" class="hidden"></div>
@@ -265,6 +268,6 @@
 
 <script src="config.js"></script>
 <script src="game-core.js"></script>
-<script src="client.js"></script>
+<script src="audio.js"></script><script src="menu-content.js"></script><script src="client.js"></script>
 </body>
 </html>

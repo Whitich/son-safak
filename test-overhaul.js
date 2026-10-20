@@ -55,7 +55,7 @@ test('Geliştirmeler kademelidir, üst sınırı vardır ve gece sonunda korunur
 test('Gece ilerledikçe yeni davranışlar, can, hasar ve toplam tehdit artar',()=>{
  assert.ok(Object.keys(C.ZOMBIES).length>=10);assert.ok(C.waveComp(8).includes('healer'));assert.ok(C.waveComp(8).includes('berserker'));assert.ok(C.waveComp(8).includes('sapper'));assert.ok(C.waveComp(10).includes('boss'));
  assert.ok(C.waveComp(8).length>C.waveComp(2).length);assert.ok(C.scaleZombie('walker',8,1).hp>C.scaleZombie('walker',2,1).hp);assert.ok(C.scaleZombie('walker',8,1).dmg>C.scaleZombie('walker',2,1).dmg);
- assert.ok(C.BASE.r<80);assert.equal(C.WEAPON_ORDER.length,9);
+ assert.ok(C.BASE.r<80);assert.equal(C.WEAPON_ORDER.length,12);
 });
 console.log('SONUÇ: '+count+' oynanış ve denge testi geçti');
 }finally{clearInterval(tickTimer)}

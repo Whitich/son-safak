@@ -31,7 +31,7 @@ const lastSnap = inbox => inbox.filter(m => m.t === 's').pop();
 (async () => {
   // 1. oda kur
   const a = await connect();
-  a.ws.send(JSON.stringify({ t: 'join', name: 'Host', create: true }));
+  a.ws.send(JSON.stringify({ t: 'join', name: 'Host', create: true, appearance:{colors:'cobalt',outfits:'hazmat',heads:'hood',skins:'deep'} }));
   const joined = await waitFor(a.inbox, m => m.t === 'joined', 3000);
   log('oda kurma', !!joined.code, 'kod=' + joined.code);
   const code = joined.code;
@@ -60,6 +60,11 @@ const lastSnap = inbox => inbox.filter(m => m.t === 's').pop();
   const snap = await waitFor(a.inbox, m => m.t === 's', 5000);
   log('oyun başladı', snap.st === 'playing' && snap.p === 'prep', 'phase=' + snap.p + ' altın=' + snap.g);
   log('5 kişi başlangıç altını', snap.g === C.startingGold(5), 'g=' + snap.g);
+
+  a.ws.send(JSON.stringify({t:'buy',item:'vitality'}));
+  const upgraded = await waitFor(a.inbox,m=>m.t==='s'&&m.P.every(p=>p.mh===125&&p.u.vitality===1),3000);
+  log('ortak yükseltme 5 oyuncuya uygulandı',upgraded.g===snap.g-C.UPGRADES.vitality.cost);
+  log('özelleştirme tüm istemcilere iletildi',upgraded.P.find(p=>p.n==='Host').ap.outfits==='hazmat');
 
   // 5. dalga 1
   a.ws.send(JSON.stringify({ t: 'skip' }));
