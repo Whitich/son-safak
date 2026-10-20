@@ -60,9 +60,14 @@
     window.PlayerAppearance=G.sanitizeAppearance({...window.PlayerAppearance,[b.dataset.field]:b.dataset.value});
     try{localStorage.setItem('ss_appearance',JSON.stringify(window.PlayerAppearance))}catch{}render();
   });
-  function zombieIcon(id,z){return '<svg viewBox="0 0 100 80" aria-hidden="true"><ellipse cx="50" cy="68" rx="29" ry="7" fill="#0005"/><path d="M30 43L12 58m58-15 18 15" stroke="'+z.color+'" stroke-width="13" stroke-linecap="round"/><ellipse cx="50" cy="42" rx="'+(id==='swarm'?14:25)+'" ry="25" fill="'+z.color+'"/><circle cx="50" cy="28" r="17" fill="#35473b"/><circle cx="43" cy="27" r="3" fill="#ef8a73"/><circle cx="57" cy="27" r="3" fill="#ef8a73"/>'+(z.armor?'<path d="M31 37h38v19H31z" fill="#a7bac6"/>':z.healAura?'<path d="M47 37h6v21h-6zm-7 7h20v6H40z" fill="#d6fff1"/>':z.siege?'<rect x="40" y="40" width="20" height="16" fill="#ffcc7c"/>':z.boss?'<path d="M32 10l5-9 13 8 13-8 5 9" fill="#f6ca6f"/>':'')+'</svg>';}
+  function zombieIcon(id,z){return '<canvas width="224" height="224" data-zombie="'+id+'" role="img" aria-label="'+z.name+' görünümü"></canvas>';}
   function openCatalog(){
     $('catalogList').innerHTML=Object.entries(G.ZOMBIE_GUIDE).sort((a,b)=>a[1].night-b[1].night).map(([id,info])=>{const z=G.ZOMBIES[id];return '<article class="zombieCard"><div class="zombiePortrait">'+zombieIcon(id,z)+'<span>GECE '+info.night+(z.boss?' / HER 5 GECEDE':'')+'</span></div><div><small>'+info.role+'</small><h3>'+z.name+'</h3><div class="zombieStats">'+z.hp+' CAN · '+z.dmg+' HASAR · '+z.speed+' HIZ'+(z.range?' · '+z.range+' MENZİL':'')+'</div><p>'+info.behavior+'</p><p class="counter"><b>Karşı taktik:</b> '+info.counter+'</p></div></article>'}).join('');
+    for(const canvas of $('catalogList').querySelectorAll('[data-zombie]')){
+      const type=canvas.dataset.zombie,c=canvas.getContext('2d'),r=G.ZOMBIES[type].r;
+      c.save();c.translate(112,112);const scale=Math.min(3.1,56/r);c.scale(scale,scale);
+      window.ZombieArt.draw(c,type,.65,1.1,1000);c.restore();
+    }
     $('menu').inert=true;
     $('zombieCatalog').classList.remove('hidden');$('closeCatalog').focus();
   }

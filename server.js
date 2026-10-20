@@ -6,7 +6,7 @@ const { WebSocketServer } = require('ws');
 const C = require('./public/game-core.js');
 
 const PORT = process.env.PORT || 3000;
-const VERSION = '4.2.0';
+const VERSION = '4.3.0';
 const TICK = 1 / 30;
 
 const app = express();

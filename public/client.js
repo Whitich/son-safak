@@ -181,7 +181,7 @@ function updateStartBtn(m) {
 function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 
 function enterGame() {
-  playerPoses.clear();
+  playerPoses.clear();zFace.clear();
   inGame = true;
   snapPrev = snapNext = latest = null;
   keys.clear(); mouse.down = false;
@@ -697,6 +697,8 @@ function render(now) {
   }
 
   const drawables = [];
+  const visibleZombieIds=new Set(interpZombies.map(z=>z.i));
+  for(const id of zFace.keys())if(!visibleZombieIds.has(id))zFace.delete(id);
   for (const z of interpZombies) drawables.push({ y: z.y, kind: 'z', e: z });
   for (const p of interpPlayers) drawables.push({ y: p.y, kind: 'p', e: p });
   drawables.sort((a, b) => a.y - b.y);
@@ -885,52 +887,26 @@ function hpBarSmall(cx, y, wdt, frac) {
 function drawZombie(z, now) {
   const base = G.ZOMBIES[z.t] || G.ZOMBIES.walker;
   const r = base.r;
-  // facing
-  const prev = zFace.get(z.i);
-  let ang = prev ? Math.atan2(z.y - prev.y, z.x - prev.x) : Math.PI / 2;
-  if (prev && Math.hypot(z.x - prev.x, z.y - prev.y) < 0.4) ang = prev.a || ang;
-  zFace.set(z.i, { x: z.x, y: z.y, a: ang });
-
-  ctx.fillStyle = 'rgba(0,0,0,.32)';
-  ctx.beginPath(); ctx.ellipse(z.x, z.y + r * 0.5, r * 0.9, r * 0.42, 0, 0, 7); ctx.fill();
-
-  if (base.boss) {
-    ctx.strokeStyle = 'rgba(255, 77, 109, .55)';
-    ctx.lineWidth = 3;
-    ctx.beginPath(); ctx.arc(z.x, z.y, r + 7 + Math.sin(now / 200) * 3, 0, 7); ctx.stroke();
-  }
-
-  ctx.fillStyle = base.color;
-  ctx.strokeStyle = 'rgba(0,0,0,.55)';
-  ctx.lineWidth = 2.5;
-  ctx.beginPath(); ctx.arc(z.x, z.y, r, 0, 7); ctx.fill(); ctx.stroke();
-
-  ctx.save();ctx.translate(z.x,z.y);ctx.rotate(ang);
-  ctx.fillStyle=base.color;ctx.fillRect(1,-r*0.85,r*1.2,6);ctx.fillRect(1,r*0.5,r*1.2,6);
-  ctx.fillStyle='#24352d';ctx.beginPath();ctx.arc(-3,0,r*.55,0,Math.PI*2);ctx.fill();ctx.restore();
-  if(base.armor){ctx.strokeStyle='#c7d5df';ctx.lineWidth=5;ctx.beginPath();ctx.arc(z.x,z.y,r*.8,ang-.9,ang+.9);ctx.stroke();}
-  if(base.healAura){ctx.strokeStyle='#60e2b977';ctx.lineWidth=2;ctx.beginPath();ctx.arc(z.x,z.y,r+8+Math.sin(now/250)*3,0,Math.PI*2);ctx.stroke();ctx.fillStyle='#d2fff0';ctx.fillRect(z.x-2,z.y-7,4,14);ctx.fillRect(z.x-7,z.y-2,14,4);}
-  if(base.siege){ctx.fillStyle='#ffda83';ctx.fillRect(z.x-7,z.y-7,14,14);}
-  if(base.artillery){ctx.strokeStyle='#754a2c';ctx.lineWidth=7;ctx.beginPath();ctx.moveTo(z.x,z.y);ctx.lineTo(z.x+Math.cos(ang)*28,z.y+Math.sin(ang)*28);ctx.stroke();}
-  if(base.disrupt){ctx.strokeStyle='#b991e233';ctx.lineWidth=1.5;ctx.setLineDash([8,12]);ctx.beginPath();ctx.arc(z.x,z.y,base.disrupt,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);ctx.strokeStyle='#e2c4ff';ctx.lineWidth=3;ctx.beginPath();ctx.arc(z.x,z.y,r+5,0,Math.PI*2);ctx.stroke();}
-  // eyes
-  const ex = Math.cos(ang), ey = Math.sin(ang);
-  const ex1 = z.x + ex * r * 0.45 - ey * r * 0.28, ey1 = z.y + ey * r * 0.45 + ex * r * 0.28;
-  const ex2 = z.x + ex * r * 0.45 + ey * r * 0.28, ey2 = z.y + ey * r * 0.45 - ex * r * 0.28;
-  ctx.fillStyle = base.boss ? '#ffe14d' : '#1a0d0d';
-  ctx.beginPath(); ctx.arc(ex1, ey1, r * 0.16, 0, 7); ctx.fill();
-  ctx.beginPath(); ctx.arc(ex2, ey2, r * 0.16, 0, 7); ctx.fill();
+  const prev=zFace.get(z.i),distance=prev?Math.hypot(z.x-prev.x,z.y-prev.y):0;
+  const ang=prev?(distance>.4?Math.atan2(z.y-prev.y,z.x-prev.x):prev.a):Math.PI/2;
+  const stride=(prev?.stride||0)+(distance<80?distance*.14*16/r:0);
+  zFace.set(z.i,{x:z.x,y:z.y,a:ang,stride});
+  if(base.disrupt){ctx.strokeStyle='#b991e233';ctx.lineWidth=1.5;ctx.setLineDash([8,12]);ctx.beginPath();ctx.arc(z.x,z.y,base.disrupt,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);}
+  if(base.healAura||base.boss){ctx.strokeStyle=base.boss?'#ff627955':'#60e2b955';ctx.lineWidth=2;ctx.beginPath();ctx.arc(z.x,z.y,r+7+Math.sin(now/250)*2,0,Math.PI*2);ctx.stroke();}
+  ctx.save();ctx.translate(z.x,z.y);
+  window.ZombieArt.draw(ctx,z.t,ang,stride,now,base.rage&&z.hp<z.mh*.5);
+  ctx.restore();
 
   if (z.hp < z.mh || base.boss) {
     const wdt = base.boss ? 76 : r * 2.2;
     ctx.fillStyle = '#10161f';
-    ctx.fillRect(z.x - wdt / 2, z.y - r - 11, wdt, base.boss ? 7 : 5);
+    ctx.fillRect(z.x - wdt / 2, z.y - r - 16, wdt, base.boss ? 7 : 5);
     ctx.fillStyle = '#ff5a5a';
-    ctx.fillRect(z.x - wdt / 2, z.y - r - 11, wdt * Math.max(0, z.hp / z.mh), base.boss ? 7 : 5);
+    ctx.fillRect(z.x - wdt / 2, z.y - r - 16, wdt * Math.max(0, z.hp / z.mh), base.boss ? 7 : 5);
     if (base.boss) {
       ctx.fillStyle = '#ffd166';
       ctx.font = 'bold 12px Segoe UI'; ctx.textAlign = 'center';
-      ctx.fillText(base.name, z.x, z.y - r - 16);
+      ctx.fillText(base.name, z.x, z.y - r - 23);
     }
   }
 }

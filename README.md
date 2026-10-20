@@ -1,4 +1,4 @@
-# Son Şafak 4.2
+# Son Şafak 4.3
 
 [Tarayıcıda oyna](https://son-safak.onrender.com/) — 1–8 kişilik kooperatif zombi savunması.
 
@@ -60,3 +60,7 @@ Düşman sayısı her gece ölçülü artar. İlerleyen gecelerde doğuş aralı
 Skor, başlanmış geceyi değil tamamlanan geceleri sayar. Bu cihazda tek kişilik ve ekip rekorları ayrı kaydedilir; küresel liderlik tablosu değildir.
 
 Taret hedeflemesi görüş hattını kontrol eder; kapalı hedef yerine açık hedefi seçer. Atıştan sonra araya duvar kurulursa, hareketli mermi de duvarda durur. Delici taret mermileri duvarı delemez; dost yapılara ateş hasarı verilmez.
+
+## Enfekte görünümü (4.3)
+
+12 tür için ortak savaş alanı/katalog çizimi: bozuk gövde silüeti, uzanan pençeler, yırtık kıyafet, açık omurga ve türlere özgü detaylar. Sürücü yere yakın hareket eder; Güçlü ve boss asimetrik ve kemiksi çıkıntılıdır. Tükürükçü/kuşatmacı asit keseleri, şifacı mantarlar, bozucu mor çıkıntılar taşır. Adım animasyonu gerçek hareket mesafesine bağlıdır. Fiziksel boyutlar ve oyun kuralları korunur.

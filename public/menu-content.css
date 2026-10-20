@@ -11,3 +11,5 @@
 @media(max-height:780px) and (min-width:801px){#characterPreview{height:145px}#appearanceOptions{min-height:235px;gap:9px}}
 
 @media(max-height:780px) and (min-width:801px){#appearanceOptions{gap:7px}.appearanceTabs{margin-bottom:0}.appearanceChoices.modelChoices button{min-height:28px;padding:6px 5px}}
+
+.zombieCard{grid-template-columns:112px minmax(0,1fr)}.zombiePortrait canvas{width:112px;height:112px;background:radial-gradient(ellipse,#48624b44,transparent 70%)}@media(max-width:800px){.zombieCard{grid-template-columns:85px minmax(0,1fr)}.zombiePortrait canvas{width:85px;height:85px}}

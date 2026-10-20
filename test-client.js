@@ -11,6 +11,7 @@ function el(id){if(!elements.has(id)) elements.set(id,{value:'',classList:{add()
 const sandbox={window:{GameCore:G},document:{getElementById:el,createElement:()=>el('temp')},innerWidth:1440,innerHeight:900,devicePixelRatio:1,performance:{now:()=>1000},addEventListener(){},localStorage:{getItem(){return ''},setItem(){}},requestAnimationFrame(){},setTimeout(){},console,location:{protocol:'http:',host:'localhost:3000'}};
 vm.createContext(sandbox);
 vm.runInContext(fs.readFileSync('./public/character-art.js','utf8'),sandbox);
+vm.runInContext(fs.readFileSync('./public/zombie-art.js','utf8'),sandbox);
 vm.runInContext(fs.readFileSync('./public/client.js','utf8'),sandbox);
 vm.runInContext(`myId=1; enterGame(); onSnapshot({t:'s',g:250,w:0,p:'prep',ti:12,bh:3000,bmh:3000,L:[],Z:[],B:[],A:[],P:[{i:1,x:1390,y:800,c:'#fff',n:'Test',s:'alive',w:'pistol',mz:14,rl:0,hp:100,mh:100,k:0}],ev:[]}); render(1000);`,sandbox);
 assert.equal(depth,0,'Canvas save/restore must balance');
@@ -49,3 +50,7 @@ assert.ok(shopHtml.includes('Son Hat')&&shopHtml.includes('data-buy="baselevel"'
 vm.runInContext("wallsLive=[{id:8,kind:'wall',x:pred.x+100,y:pred.y,lv:2,hp:200,mh:396}];shopTab='structures';renderShop();",sandbox);
 assert.ok(shopHtml.includes('YAPI #8 · SEVİYE 2')&&shopHtml.includes('data-structure="8"'));
 console.log('PASS | locked shop tiers, base progression and individual structure upgrade cards');
+
+vm.runInContext(`for(const type of Object.keys(G.ZOMBIES)) for(const angle of [0,Math.PI/2,Math.PI,-Math.PI/2]) for(const stride of [0,1.5,3]) for(const rage of [false,true]) window.ZombieArt.draw(ctx,type,angle,stride,1200,rage);`,sandbox);
+assert.equal(depth,0,'All infected silhouettes balance canvas state');
+console.log('PASS | all infected types, headings, gait poses and rage states');
