@@ -412,7 +412,7 @@ function renderShop(){
     stats+='<ul class="equipmentFacts">'+facts.map(f=>'<li>'+f+'</li>').join('')+'</ul>';
     const attr=shopTab==='build'?'data-place':'data-buy';
     const label=active?'KUŞANILDI':capped?'TAM SEVİYE':owned?'KUŞAN':!can&&gold<price?'$'+price+' · PARA YETERSİZ':shopTab==='build'?'YERLEŞTİR · $'+price:shopTab==='upgrades'?'GELİŞTİR · $'+price:'SATIN AL · $'+price;
-    h+='<article class="marketCard '+(active?'equipped':'')+'"><div class="itemTop"><span class="itemIcon">'+(shopTab==='weapons'?'⌁':shopTab==='build'?'▥':shopTab==='upgrades'?'↑':'+')+'</span><span class="itemBadge">'+(owned?'ENVANTERİNDE':shopTab==='upgrades'?'TÜM EKİP':shopTab==='build'?'ORTAK SAVUNMA':shopTab==='weapons'?'KALICI SİLAH':'TEK KULLANIM')+'</span></div><h3>'+d.name+'</h3><p>'+detail+'</p>'+stats+'<button '+attr+'="'+id+'" '+(!can||active?'disabled':'')+'>'+label+'</button></article>';
+    h+='<article class="marketCard '+(active?'equipped':'')+'"><div class="itemTop"><span class="itemIcon">'+(shopTab==='weapons'?'⌁':shopTab==='build'?'▥':shopTab==='upgrades'?'↑':'+')+'</span><span class="itemBadge">'+(owned?'ENVANTERİNDE':shopTab==='upgrades'?'TÜM EKİP':shopTab==='build'?'ORTAK SAVUNMA':shopTab==='weapons'?'KALICI SİLAH':'TEK KULLANIM')+'</span></div><h3>'+d.name+'</h3><button '+attr+'="'+id+'" '+(!can||active?'disabled':'')+'>'+label+'</button><p>'+detail+'</p>'+stats+'</article>';
   }
   h+='</div><footer class="shopFooter"><span>Gece market açıkken de devam eder.</span><span><kbd>B</kbd> kapat / inşayı iptal · <kbd>X</kbd> imleçteki yapıyı sök (%40 iade)</span></footer>';
   shopEl.innerHTML=h;

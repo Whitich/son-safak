@@ -8,3 +8,34 @@
 .marketCard{display:flex;flex-direction:column;border:1px solid #34473f;border-radius:7px;padding:17px;background:linear-gradient(145deg,#1d2c2d,#142126);min-width:0;min-height:216px}.marketCard.equipped{border-color:#b2d99b;background:linear-gradient(130deg,#2b4032,#15242a)}.itemTop{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}.itemIcon{font-size:27px;line-height:1;color:#b4dca9;font-weight:bold}.itemBadge{font-size:8px;letter-spacing:1px;color:#92afa0;border:1px solid #52695155;padding:4px 6px;border-radius:3px}.marketCard h3{font-size:17px;color:#e8f1df;margin-bottom:7px}.marketCard p{font-size:11.5px;line-height:1.6;color:#9eb4aa;margin:0 0 14px;min-height:36px}.itemStats{display:flex;gap:16px;margin:0 0 15px;color:#e5e9d5}.itemStats span{font-size:15px;font-weight:700;flex:1;white-space:nowrap}.itemStats small{display:block;font-size:8px;letter-spacing:1px;color:#819b8b;margin-top:3px;font-weight:500}.marketCard button{margin-top:auto;font-size:10px;letter-spacing:1px;padding:11px 5px;border-radius:3px}.marketCard button:disabled{background:#314239;color:#9aaf9d;opacity:.65}.levelTrack{display:flex;gap:5px;align-items:center;margin:4px 0 19px}.levelTrack i{height:6px;flex:1;background:#3d4f44;border-radius:3px}.levelTrack i.on{background:#b4d99f}.levelTrack span{font-size:11px;color:#b2c6b5;margin-left:7px}.shopFooter{padding:13px 26px;background:#0b1719;border-top:1px solid #35483d;display:flex;justify-content:space-between;gap:12px;font-size:10px;color:#91aaa0;line-height:1.6;flex-shrink:0;}
 #weaponBelt{position:absolute;bottom:66px;left:50%;transform:translateX(-50%);display:flex;gap:4px;pointer-events:auto;max-width:66vw;z-index:11;}#weaponBelt button{display:flex;flex-direction:column;gap:4px;align-items:flex-start;min-width:60px;max-width:80px;flex:1;background:#0e1d20ef;color:#c0d0be;border:1px solid #395149;padding:7px 8px;font-size:9px;letter-spacing:0;}#weaponBelt button.selected{border-color:#bbdfa7;background:#293e32;color:#e7f3d7;}#weaponBelt button:disabled{opacity:.35}#weaponBelt kbd{font-size:9px;padding:0 4px}#weaponBelt span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:65px;}#buildHint{bottom:135px;}#nightForecast{position:absolute;left:50%;top:98px;transform:translateX(-50%);max-width:70vw;text-align:center;font-size:10px;letter-spacing:.6px;color:#b3c4ab;line-height:1.5;background:#0b1519b0;padding:7px 12px;border-radius:3px;}#centerMsg{top:27%;}#baseBox{padding-bottom:13px;}#roomChip{top:82px;}#feed{top:100px;max-width:270px;}
 @media(max-width:800px){#shop{top:4%;height:90%;width:96vw;}.shopHeader{padding:16px;gap:12px}.shopHeader h2{font-size:18px}.shopBank strong{font-size:23px}.shopTabs{padding:12px 12px 0;gap:3px}.shopTabs button{font-size:9px;padding:10px 4px}.shopIntro{padding:10px 15px;font-size:11px}.shopGrid{grid-template-columns:repeat(2,minmax(0,1fr));padding:12px;gap:9px}.marketCard{padding:12px;min-height:200px}.marketCard h3{font-size:15px}.shopFooter{padding:9px 13px;display:block;font-size:9px}.shopFooter span{display:block}#weaponBelt{bottom:135px;max-width:94vw;gap:2px}#weaponBelt button{min-width:34px;padding:5px;max-width:63px}#weaponBelt span{max-width:48px;font-size:8px}#nightForecast{top:135px;max-width:95vw;width:95vw;font-size:9px}#buildHint{bottom:195px;width:90vw;text-align:center;font-size:11px}#roomChip{top:120px}#feed{top:185px;max-width:220px}}
+
+/* Product cards grow with their descriptions; purchase controls remain near the title. */
+#shop .shopGrid { grid-auto-rows: max-content; align-items: stretch; overscroll-behavior: contain; scroll-padding-block: 16px; }
+#shop .marketCard { height: auto; min-height: 0; overflow: visible; }
+#shop .marketCard > * { flex-shrink: 0; }
+#shop .marketCard h3, #shop .marketCard p, #shop .equipmentFacts li { white-space: normal; overflow-wrap: anywhere; }
+#shop .marketCard > button { flex: 0 0 auto; width: 100%; min-height: 42px; margin: 2px 0 14px; padding: 11px 9px; line-height: 1.5; white-space: normal; overflow-wrap: anywhere; }
+#shop .itemTop { flex-wrap: wrap; gap: 8px; }
+#shop .itemBadge { max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
+#shop .itemStats { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 10px; }
+#shop .itemStats span { min-width: 0; white-space: normal; overflow-wrap: anywhere; }
+#shop .equipmentFacts { font-size: 11px; line-height: 1.7; padding-bottom: 0; }
+#shop .shopHeader { flex-shrink: 0; }
+@media (max-width: 1000px) { #shop .shopGrid { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+@media (max-width: 560px) {
+  #shop .shopGrid { grid-template-columns: minmax(0,1fr); }
+  #shop .shopHeader { padding: 12px; gap: 10px; }
+  #shop .shopHeader h2 { font-size: 16px; }
+  #shop .shopBank strong { font-size: 22px; }
+  #shop .shopIntro { padding: 10px 13px; }
+}
+@media (max-height: 560px) {
+  #shop { top: 2%; height: 96%; max-height: none; }
+  #shop .shopHeader { padding: 9px 14px; gap: 12px; }
+  #shop .shopHeader h2 { font-size: 16px; margin-top: 3px; }
+  #shop .shopBank strong { font-size: 20px; }
+  #shop .shopTabs { padding: 8px 12px 0; }
+  #shop .shopTabs button { padding: 8px 5px; }
+  #shop .shopIntro { padding: 8px 14px; font-size: 10px; }
+  #shop .shopFooter { padding: 7px 14px; font-size: 9px; }
+}
