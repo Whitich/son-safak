@@ -18,3 +18,12 @@ vm.runInContext(`snapPrev=snapNext; render(1033); keys.add('Tab'); showScore=tru
 assert.equal(depth,0);
 assert.ok(elements.get('scoreboard').innerHTML.includes('Test'));
 console.log('PASS | browser snapshot interpolation, character rendering, balanced canvas and scoreboard');
+
+let shopWrites = 0;
+let shopHtml = elements.get('shop').innerHTML;
+Object.defineProperty(elements.get('shop'), 'innerHTML', {get(){return shopHtml},set(v){shopWrites++;shopHtml=v}});
+vm.runInContext('openShop(); renderShop(); renderShop();',sandbox);
+assert.equal(shopWrites,1,'Identical snapshots must preserve shop buttons during a click');
+vm.runInContext('gold -= 50; renderShop();',sandbox);
+assert.equal(shopWrites,2,'Shop must update after shared money changes');
+console.log('PASS | shop buttons remain stable across snapshots and update when money changes');

@@ -125,6 +125,7 @@ class Room {
     if (this.gold < def.cost) return false;
     x = Math.round(x); y = Math.round(y);
     if (x < def.w / 2 + 10 || y < def.h / 2 + 10 || x > C.WORLD.w - def.w / 2 - 10 || y > C.WORLD.h - def.h / 2 - 10) return false;
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return false;
     const bx = x - def.w / 2, by = y - def.h / 2;
     if (Math.hypot(x - this.base.x, y - this.base.y) < this.base.r + Math.max(def.w, def.h) * 0.6) return false;
     for (const w of this.walls) {
@@ -236,11 +237,22 @@ class Room {
           this.spawnZombie();
           this.spawnT = C.waveSpawnInterval(this.wave);
         }
-      } else if (this.zombies.length === 0) {
+      } else if (this.zombies.length === 0 && [...this.players.values()].some(p => p.state === 'alive') && this.base.hp > 0) {
         const bonus = C.waveBonus(this.wave);
         this.gold += bonus;
         this.phase = 'prep';
         this.timer = C.INTERMISSION;
+        this.acids = []; this.bullets = [];
+        for (const p of this.players.values()) {
+          if (p.state !== 'alive') {
+            const ang = Math.random() * Math.PI * 2;
+            p.x = this.base.x + Math.cos(ang) * (this.base.r + 70);
+            p.y = this.base.y + Math.sin(ang) * (this.base.r + 70);
+          }
+          p.state = 'alive'; p.hp = p.maxHp; p.bleed = 0; p.reviveProg = 0;
+          p.reloadT = 0; p.ammo = C.WEAPONS[p.weapon].mag;
+          p.mx = 0; p.my = 0; p.fire = false; p.rel = false; p.firedLatch = false;
+        }
         this.events.push({ e: 'wc', n: this.wave, b: bonus });
       }
     }
@@ -640,7 +652,7 @@ wss.on('connection', ws => {
         p.rel = !!msg.r;
         break;
       }
-      case 'buy': room.buy(String(msg.item), id); break;
+      case 'buy': if (!room.buy(String(msg.item), id)) send(ws, {t:'notice', m:'Satın alınamadı: ortak para yetersiz, karakter ayakta değil veya bu desteğe şu an ihtiyaç yok.'}); break;
       case 'equip': {
         const p = room.players.get(id);
         const w = String(msg.w);
@@ -651,7 +663,7 @@ wss.on('connection', ws => {
         }
         break;
       }
-      case 'build': room.build(String(msg.k), +msg.x, +msg.y, id); break;
+      case 'build': { const ok = room.build(String(msg.k), +msg.x, +msg.y, id); send(ws, {t:'buildResult', ok}); break; }
       case 'start': if (id === room.hostId && room.state !== 'playing') { room.start(); room.broadcast({ t: 'gs', state: 'playing' }); } break;
       case 'skip': if (id === room.hostId && room.state === 'playing' && room.phase === 'prep') room.timer = 0; break;
       case 'ping': send(ws, { t: 'pong', id: msg.id }); break;

@@ -14,6 +14,7 @@ let wallsLive = [], zombiesLive = [], playersLive = [];
 let particles = [], decals = [], shake = 0;
 let placement = null;
 let shopOpen = false, showScore = false;
+let shopSignature = ''; 
 let cam = { x: G.BASE.x, y: G.BASE.y };
 let mouse = { x: innerWidth / 2, y: innerHeight / 2, down: false };
 let keys = new Set();
@@ -171,6 +172,10 @@ function handleMsg(m) {
       break;
     case 's': onSnapshot(m); break;
     case 'over': onGameOver(m); break;
+    case 'notice': feed(esc(m.m), '#ffd166'); break;
+    case 'buildResult':
+      feed(m.ok ? 'İnşa tamamlandı. Aynı yapıdan tekrar yerleştirebilir veya sağ tıkla çıkabilirsin.' : 'İnşa edilemedi. Daha boş bir alan seç veya ortak paranı kontrol et.', m.ok ? '#69d990' : '#ff7070');
+      break;
     case 'left':
       feed('Bir oyuncu ayrıldı', '#7f8fa3');
       break;
@@ -268,7 +273,7 @@ function processEvents(evs) {
         break;
       case 'wc':
         SFX.clear();
-        centerMsg('DALGA TEMİZ!', '+' + e.b + '$', 2.6);
+        centerMsg('GECE ATLATILDI!', 'Herkes canlandı · Tam can · +' + e.b + '$', 3.5);
         break;
       case 'dd':
         if (e.id === myId) { SFX.down(); downEl.classList.remove('hidden'); }
@@ -343,6 +348,7 @@ cv.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY
 cv.addEventListener('mousedown', e => {
   ac();
   if (e.button !== 0) return;
+  mouse.x = e.clientX; mouse.y = e.clientY;
   if (inGame && placement) { tryPlace(); return; }
   mouse.down = true;
 });
@@ -354,7 +360,7 @@ function tryPlace() {
   const def = G.BUILD[placement];
   const w = mouseWorld();
   const x = Math.round(w.x), y = Math.round(w.y);
-  if (!placeValid(placement, x, y)) return;
+  if (!placeValid(placement, x, y)) { feed(gold < def.cost ? 'Ortak para yetersiz. Duvar: $50 · Taret: $350' : 'Kırmızı alan uygun değil. Üssün, duvarların ve zombilerin uzağında boş bir yer seç.', '#ff9d68'); return; }
   sendMsg({ t: 'build', k: placement, x, y });
 }
 function placeValid(kind, x, y) {
@@ -363,6 +369,7 @@ function placeValid(kind, x, y) {
   if (x < def.w / 2 + 10 || y < def.h / 2 + 10 || x > G.WORLD.w - def.w / 2 - 10 || y > G.WORLD.h - def.h / 2 - 10) return false;
   if (Math.hypot(x - G.BASE.x, y - G.BASE.y) < G.BASE.r + Math.max(def.w, def.h) * 0.6) return false;
   for (const wl of wallsLive) {
+    if (circleRect(x, y, Math.max(def.w, def.h) * 0.55, wl.x - wl.w / 2, wl.y - wl.h / 2, wl.w, wl.h)) return false;
     if (Math.abs(wl.x - x) < (wl.w + def.w) / 2 && Math.abs(wl.y - y) < (wl.h + def.h) / 2) return false;
   }
   for (const z of zombiesLive) {
@@ -374,12 +381,17 @@ function z_mh_r(z) { return (G.ZOMBIES[z.t] || G.ZOMBIES.walker).r; }
 
 /* ---------- shop ---------- */
 function openShop() {
+  mouse.down = false;
+  shopSignature = '';
   shopOpen = true;
   shopEl.classList.remove('hidden');
   renderShop();
 }
 function closeShop() { shopOpen = false; shopEl.classList.add('hidden'); }
 function renderShop() {
+  const signature = JSON.stringify([gold, myWeapon, ownedWeaps, placement]);
+  if (shopSignature === signature) return;
+  shopSignature = signature;
   let h = '<h4>MARKET — <span style="color:#ffd166">$' + gold + '</span></h4>';
   h += '<div class="shopGroup"><div class="gt">SİLAHLAR</div>';
   for (const id of G.WEAPON_ORDER) {
@@ -396,7 +408,7 @@ function renderShop() {
   for (const id of ['wall', 'turret']) {
     const d = G.BUILD[id];
     h += '<div class="shopItem ' + (gold >= d.cost ? '' : 'no') + (placement === id ? ' can' : '') + '" data-place="' + id + '">' +
-      '<div><div class="nm">' + d.name + '</div><div class="ds">' + (id === 'wall' ? 'Dayanıklı barikat · ' + d.hp + ' can' : 'Otomatik ateş · ' + d.damage + ' hasar') + '</div></div>' +
+      '<div><div class="nm">' + d.name + '</div><div class="ds">' + (id === 'wall' ? 'Seç, sonra boş zemine tıkla · ' + d.hp + ' can' : 'Seç, sonra boş zemine tıkla · ' + d.damage + ' hasar') + '</div></div>' +
       '<div class="pr">$' + d.cost + '</div></div>';
   }
   h += '</div><div class="shopGroup"><div class="gt">DESTEK</div>';
@@ -421,7 +433,8 @@ shopEl.addEventListener('click', e => {
       closeShop();
       updateBuildHint();
       renderShopGhostCursor();
-    }
+      feed('İnşa modu: yeşil önizlemeyi boş zemine sol tıklayarak yerleştir. Para yerleştirince düşer.', '#69d990');
+    } else { feed('Ortak para yetersiz: ' + G.BUILD[id].name + ' için $' + G.BUILD[id].cost + ' gerekiyor.', '#ffd166'); }
   }
 });
 function updateBuildHint() {

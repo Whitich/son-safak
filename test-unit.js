@@ -230,13 +230,13 @@ function makeRoom(nPlayers) {
   room.phase = 'wave'; room.queue = []; room.zombies = [];
   // kurtarıcı yakında: ilerleme
   let t = 0;
-  while (t < 3.5) { room.update(0.1); t += 0.1; if (a.state === 'alive') break; }
+  while (t < 3.5) { room.updatePlayers(0.1); t += 0.1; if (a.state === 'alive') break; }
   log('yanında bekleyince canlandı', a.state === 'alive' && a.hp > 0, 'hp=' + a.hp);
   // kanama: uzakta tek başına
   room.damagePlayer(a, 150);
   b.x = 2000; b.y = 2000;
   t = 0;
-  while (t < 13 && a.state !== 'dead') { room.update(0.1); t += 0.1; }
+  while (t < 13 && a.state !== 'dead') { room.updatePlayers(0.1); t += 0.1; }
   log('kurtarıcı yoksa kanayıp öldü', a.state === 'dead', 't=' + t.toFixed(1));
   log('ölü oyuncu vurulamaz', (room.damagePlayer(a, 50), a.state === 'dead'));
 }
@@ -309,6 +309,19 @@ function makeRoom(nPlayers) {
 {
   const {room,list}=makeRoom(2);room.start();list[0].state='dead';room.update(0.1);
   log('hayatta ekip arkadaşı varken oyun sürer',room.state==='playing');
+}
+{
+ const {room,list}=makeRoom(3); room.start(); room.phase='wave'; room.wave=1;room.queue=[];room.zombies=[];
+ list[0].hp=20; list[1].state='dead'; list[1].hp=0; list[2].state='down'; list[2].hp=0;list[2].bleed=4;
+ room.acids=[{x:list[0].x,y:list[0].y,vx:0,vy:0,life:3,dmg:100}];
+ room.update(0.1);
+ log('gece sonunda bir kişi ayaktaysa herkes tam canla dirilir', list.every(p=>p.state==='alive'&&p.hp===p.maxHp)&&room.phase==='prep');
+ log('gece sonunda kanama ve eski mermiler temizlenir',list.every(p=>p.bleed===0&&p.reviveProg===0)&&room.acids.length===0);
+}
+{
+ const {room,list}=makeRoom(2);room.start();room.phase='wave';room.queue=[];room.zombies=[];
+ list.forEach(p=>{p.state='down';p.bleed=10;p.hp=0;});room.update(0.1);
+ log('kimse ayakta değilse gece bonusu ve ücretsiz dirilme yok',room.phase==='wave'&&list.every(p=>p.state==='down'));
 }
 clearInterval(tickTimer);
 const fails = results.filter(r => !r.ok).length;
