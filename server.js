@@ -6,7 +6,7 @@ const { WebSocketServer } = require('ws');
 const C = require('./public/game-core.js');
 
 const PORT = process.env.PORT || 3000;
-const VERSION = '4.0.0';
+const VERSION = '4.1.0';
 const TICK = 1 / 30;
 
 const app = express();
@@ -23,6 +23,18 @@ function circleRect(cx, cy, r, x, y, w, h) {
   const px = C.clamp(cx, x, x + w), py = C.clamp(cy, y, y + h);
   const dx = cx - px, dy = cy - py;
   return dx * dx + dy * dy < r * r;
+}
+
+// Slab intersection catches even fast projectiles and diagonal corner crossings.
+// Returns the first position along the segment, or null when it misses.
+function segmentWall(x,y,tx,ty,w,padding=0){
+  let enter=0,exit=1;
+  for(const [origin,delta,min,max] of [[x,tx-x,w.x-w.w/2-padding,w.x+w.w/2+padding],[y,ty-y,w.y-w.h/2-padding,w.y+w.h/2+padding]]){
+    if(Math.abs(delta)<1e-9){if(origin<min||origin>max)return null;continue;}
+    let a=(min-origin)/delta,b=(max-origin)/delta;if(a>b)[a,b]=[b,a];
+    enter=Math.max(enter,a);exit=Math.min(exit,b);if(enter>exit)return null;
+  }
+  return enter;
 }
 
 function send(ws, msg) {
@@ -475,8 +487,14 @@ class Room {
         const t=len?Math.max(0,Math.min(1,((z.x-ox)*dx+(z.y-oy)*dy)/len)):0;
         if(Math.hypot(z.x-(ox+dx*t),z.y-(oy+dy*t))<z.r+4)hits.push({z,t});
       }
+      let wallT=Infinity;
+      if(b.owner===-1)for(const w of this.walls){
+        if(w.hp<=0||!C.BUILD[w.kind].blocksTurret)continue;
+        const t=segmentWall(ox,oy,b.x,b.y,w,4);if(t!==null)wallT=Math.min(wallT,t);
+      }
       hits.sort((a,b)=>a.t-b.t);let dead=false;
       for(const {z,t} of hits){
+        if(t>=wallT)break;
         b.hit.add(z.i);
         if(b.splash){this.blast(ox+dx*t,oy+dy*t,b.splash,b.dmg,b.owner);dead=true;break;}
         this.hitZombie(z,b.dmg,b.owner,b.armorPierce,b.slow);
@@ -487,6 +505,7 @@ class Room {
         }}
         if(b.pierce>0)b.pierce--;else {dead=true;break;}
       }
+      if(!dead&&wallT!==Infinity){dead=true;this.events.push({e:'h',x:ox+dx*wallT,y:oy+dy*wallT});}
       if(!dead&&b.life<=0&&b.splash)this.blast(b.x,b.y,b.splash,b.dmg,b.owner);
       if(!dead&&b.life>0&&b.x>=0&&b.y>=0&&b.x<=C.WORLD.w&&b.y<=C.WORLD.h)alive.push(b);
     }
@@ -512,7 +531,7 @@ class Room {
       }
       if (!dead) {
         for (const w of this.walls) {
-          if (!C.BUILD[w.kind].trap && circleRect(a.x, a.y, 4, w.x - w.w / 2, w.y - w.h / 2, w.w, w.h)) {
+          if (!C.BUILD[w.kind].trap && !C.BUILD[w.kind].mesh && circleRect(a.x, a.y, 4, w.x - w.w / 2, w.y - w.h / 2, w.w, w.h)) {
             w.hp -= a.dmg; dead = true;
             if (w.hp <= 0) this.removeWall(w);
             break;
@@ -554,7 +573,7 @@ class Room {
       let best = null, bd = w.range;
       for (const z of this.zombies) {
         const d = Math.hypot(z.x - w.x, z.y - w.y);
-        if (d < bd) { bd = d; best = z; }
+        if (z.hp>0 && d < bd && !this.walls.some(block=>block!==w&&block.hp>0&&C.BUILD[block.kind].blocksTurret&&segmentWall(w.x,w.y,z.x,z.y,block,4)!==null)) { bd = d; best = z; }
       }
       if (!best) {w.heat=Math.max(0,(w.heat||0)-dt*2);continue;}
       // Each turret uses its own range, fire rate and projectile effects.

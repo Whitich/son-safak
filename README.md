@@ -1,4 +1,4 @@
-# Son Şafak 4.0
+# Son Şafak 4.1
 
 [Tarayıcıda oyna](https://son-safak.onrender.com/) — 1–8 kişilik kooperatif zombi savunması.
 
@@ -10,9 +10,9 @@
 - Yapı seç, boş zemine sol tıkla. İnşa bir yerleştirmeden sonra otomatik kapanır. X: imleçteki yapıyı 300 menzilden sök, kalan cana göre %40 bedel iadesi al.
 - Boşluk: oda sahibi hazırlığı bitirir; Tab: ekip skorları.
 
-Market: 12 kalıcı silah, 8 yapı, 6 destek ve 7 kademeli ortak geliştirme. Başlangıç ortak parası tek oyuncuda $550; ek oyuncu başına $200. İlk hazırlık 45 sn, sonraki hazırlıklar 30 sn. Market oyunu durdurmaz.
+Market: 12 kalıcı silah, 9 yapı, 6 destek ve 7 kademeli ortak geliştirme. Başlangıç ortak parası tek oyuncuda $550; ek oyuncu başına $200. İlk hazırlık 45 sn, sonraki hazırlıklar 30 sn. Market oyunu durdurmaz.
 
-Duvarlar ve kapılar dost mermileri engellemez. Kapı oyunculara geçiş verirken zombileri durdurur. Dikenli tel yavaşlatır ve hasar verir; mayın tek kullanımlık alan patlamasıdır. Taretlerin menzil ve etkileri farklıdır. Duvar $50 / 240 can; yapı tamiri $15 / 160 can.
+Duvar, çelik barikat ve kapı taret ateşini engeller. Oyuncu mermileri dost yapılardan geçer. Demir çit ($140 / 300 can) zombileri ve oyuncuları durdururken taret ateşini ve asidi geçirir; her üs seviyesinde kullanılabilir ve seviye basılabilir. Kapı oyunculara geçiş verirken zombileri durdurur. Dikenli tel yavaşlatır ve hasar verir; mayın tek kullanımlık alan patlamasıdır. Taretlerin menzil ve etkileri farklıdır. Duvar $50 / 240 can; yapı tamiri $15 / 160 can.
 
 Her başarılı gecenin sonunda en az bir oyuncu ayaktaysa tüm ekip tam can ve şarjörle geri döner. Üs otomatik onarılmaz. Üs düşerse veya herkes ölürse maç biter.
 
@@ -55,6 +55,8 @@ Market → Yapı Seviyeleri: en yakından sıralanan, 420 menzildeki bir yapıya
 
 Taretler yaklaşık 6 sn kesintisiz ateşten sonra 3 sn soğur. Bozucu yakınındayken atış aralığı ikiye katlanır; birden fazla bozucu etkiyi katlamaz. Isı, soğuma ve bozulma oyun içinde görünür. Yapı seviyeleri ve kapasite sunucuda doğrulanır.
 
-Düşman sayısı her gece ölçülü artar. İlerleyen gecelerde doğuş aralığı kısalır, saldırı hızı ve yavaşlatma direnci artar; geç oyunda can ve hasar büyümesi hızlanır. Sabit bir gece kaybetme kuralı yoktur. `node test-endurance.js` üç sabit rastgele akışta tam geliştirilmiş 10 taret / 40 çelik duvarı oyuncu ateşi ve tamir olmadan sınar: mevcut ayarlarda üçü de 20 gece tamamlayıp 21. gecede yenilir. Bu bir aktif oyuncu skor tahmini değildir.
+Düşman sayısı her gece ölçülü artar. İlerleyen gecelerde doğuş aralığı kısalır, saldırı hızı ve yavaşlatma direnci artar; geç oyunda can ve hasar büyümesi hızlanır. Sabit bir gece kaybetme kuralı yoktur. `node test-endurance.js` üç sabit rastgele akışta tam geliştirilmiş 10 taret / 40 demir çiti oyuncu ateşi ve tamir olmadan sınar: mevcut ayarlarda 18–19 gece tamamlayıp 19–20. gecelerde yenilir. Bu bir aktif oyuncu skor tahmini değildir.
 
 Skor, başlanmış geceyi değil tamamlanan geceleri sayar. Bu cihazda tek kişilik ve ekip rekorları ayrı kaydedilir; küresel liderlik tablosu değildir.
+
+Taret hedeflemesi görüş hattını kontrol eder; kapalı hedef yerine açık hedefi seçer. Atıştan sonra araya duvar kurulursa, hareketli mermi de duvarda durur. Delici taret mermileri duvarı delemez; dost yapılara ateş hasarı verilmez.

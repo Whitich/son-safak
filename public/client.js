@@ -390,7 +390,7 @@ function renderShop(){
   const tabs=[['weapons','CEPHANELİK'],['build','SAVUNMA'],['support','DESTEK'],['upgrades','EKİP'],['base','ÜS SEVİYESİ'],['structures','YAPI SEVİYELERİ']];
   let h='<div class="shopHeader"><div><small>SAHA İKMAL NOKTASI</small><h2>Hazırlan. Güçlen. Dayan.</h2></div><div class="shopBank">ORTAK KASA<strong>$'+gold+'</strong></div><button data-close="1" class="shopClose" aria-label="Marketi kapat">✕</button></div>';
   h+='<nav class="shopTabs" aria-label="Market kategorileri">'+tabs.map(([id,n])=>'<button data-tab="'+id+'" class="'+(id===shopTab?'active':'')+'">'+n+'</button>').join('')+'</nav>';
-  const hints={weapons:'Satın aldığın silahlar sende kalır. 1–9 / 0, Q / E, fare tekerleği veya alttaki cephanelikle değiştir. Yedek mermi sınırsız; şarjörünü R ile doldur.',build:'Mermilerin tüm dost yapıların üzerinden geçer. Kapı oyunculara açık, zombilere kapalıdır. Yapıyı seçip zemine bir kez tıkla; B / Esc iptal eder.',support:'Tamir, yeni yapıdan daha ucuzdur. Hasarlı en yakın yapıyı onarır (420 menzil). Her gece sonunda bir kişi ayaktaysa herkes tam canla döner.',base:'Üs seviyeleri tüm ekibe ortaktır. Yalnızca hazırlıkta yükseltilir. Gerekli geceleri tamamla; yeni silahları, yapı seviyelerini ve taret kapasitesini aç.',structures:'Yakınındaki yapıya tek tek seviye bas. 420 menzil gerekir; üst sınır üs seviyendir (en çok 4). Geliştirme hasar oranını korur; tamir ayrı yapılır. Mayın tek kullanımlıdır.',upgrades:'Ekip geliştirmeleri ortak kasadan bir kez alınır, odadaki HERKESE uygulanır. Sonradan katılanlar da aynı seviyeyi alır. Her yeni seviyenin bedeli artar.'};
+  const hints={weapons:'Satın aldığın silahlar sende kalır. 1–9 / 0, Q / E, fare tekerleği veya alttaki cephanelikle değiştir. Yedek mermi sınırsız; şarjörünü R ile doldur.',build:'Duvar, çelik barikat ve kapı taret ateşini keser. Demir çit arkasından taretler ateş edebilir; çit asidi de geçirir. Oyuncu mermileri dost yapılardan geçer. Yapıyı seçip zemine bir kez tıkla; B / Esc iptal eder.',support:'Tamir, yeni yapıdan daha ucuzdur. Hasarlı en yakın yapıyı onarır (420 menzil). Her gece sonunda bir kişi ayaktaysa herkes tam canla döner.',base:'Üs seviyeleri tüm ekibe ortaktır. Yalnızca hazırlıkta yükseltilir. Gerekli geceleri tamamla; yeni silahları, yapı seviyelerini ve taret kapasitesini aç.',structures:'Yakınındaki yapıya tek tek seviye bas. 420 menzil gerekir; üst sınır üs seviyendir (en çok 4). Geliştirme hasar oranını korur; tamir ayrı yapılır. Mayın tek kullanımlıdır.',upgrades:'Ekip geliştirmeleri ortak kasadan bir kez alınır, odadaki HERKESE uygulanır. Sonradan katılanlar da aynı seviyeyi alır. Her yeni seviyenin bedeli artar.'};
   h+='<p class="shopIntro">'+hints[shopTab]+'</p><div class="shopGrid '+(shopTab==='base'?'baseGrid':'')+'">';
   if(shopTab==='base'||shopTab==='structures'){
     if(shopTab==='base'){
@@ -430,7 +430,7 @@ function renderShop(){
       if(d.turret)facts.push('6 sn sürekli ateş → 3 sn soğuma','Kapasite: '+G.BASE_LEVELS[baseLevel-1].turrets+' taret','Vuruş: '+(d.damage*(1+.15*(myUpgrades.sentry||0))).toFixed(1),'Atış aralığı: '+d.rate+' sn','Menzil: '+d.range,'Delme: '+((d.pierce||0)+1)+' hedef');
       else if(id==='mine')facts.push('Patlama: '+d.damage+' hasar','Yarıçap: '+d.splash+' · tetik: 65');
       else if(id==='spikes')facts.push('Hasar: '+d.dps+'/sn','Yavaşlatma: %50','Aşınma: temas sırasında 8 can/sn');
-      else facts.push(d.solid?'Oyuncu ve zombiyi durdurur':'Oyuncular geçer, zombiler durur','Dost mermileri geçer; asidi durdurur');
+      else facts.push(d.solid?'Oyuncu ve zombiyi durdurur':'Oyuncular geçer, zombiler durur',d.mesh?'Taret ateşi ve asit geçer':'Taret ateşini ve asidi durdurur','Oyuncu mermileri geçer');
     }else if(shopTab==='upgrades')facts.push('Etki: bütün ekip','Yeni katılanlara da uygulanır','En çok '+d.max+' seviye','Sonraki seviye: $'+(d.cost*(level+1)));
     else facts.push('Bedel: $'+d.cost,(id.startsWith('team')?'Etki: bütün ekip':id==='baserepair'?'Etki: ortak sığınak':id==='wallrepair'?'Etki: en yakın hasarlı yapı':'Etki: satın alan oyuncu'));
     if(d.slow)facts.push('Yavaşlatma: bu gece %'+Math.round((1-G.slowFactor(Math.max(1,waveN)))*100)+' · Geç gecelerde direnç artar');
@@ -827,6 +827,15 @@ function drawWall(w) {
   if(def.turret&&(w.cool>0||w.jam)){ctx.fillStyle=w.cool>0?'#ffb279':'#ce9dff';ctx.font='bold 10px Segoe UI';ctx.textAlign='center';ctx.fillText(w.cool>0?'SOĞUMA':'BOZULDU',w.x,y-24);}
   if(def.turret&&w.heat>0){ctx.fillStyle='#25333d';ctx.fillRect(x,y+w.h+4,w.w,3);ctx.fillStyle=w.cool>0?'#f9a26b':'#dcc684';ctx.fillRect(x,y+w.h+4,w.w*Math.min(1,w.heat),3);}
   const frac = w.mh > 0 ? w.hp / w.mh : 1;
+  if(def.mesh){
+    ctx.fillStyle='rgba(100,135,137,.12)';ctx.fillRect(x,y,w.w,w.h);
+    ctx.strokeStyle=frac>.4?'#a6bebc':'#a56e56';ctx.lineWidth=1.4;
+    ctx.save();ctx.beginPath();ctx.rect(x+3,y+3,w.w-6,w.h-6);ctx.clip();
+    for(let i=-w.h;i<w.w+w.h;i+=10){ctx.beginPath();ctx.moveTo(x+i,y);ctx.lineTo(x+i+w.h,y+w.h);ctx.moveTo(x+i,y+w.h);ctx.lineTo(x+i+w.h,y);ctx.stroke();}
+    ctx.restore();ctx.strokeStyle='#718d92';ctx.lineWidth=4;ctx.strokeRect(x+2,y+2,w.w-4,w.h-4);
+    ctx.fillStyle='#c5d3ce';for(const px of [x+1,x+w.w-5])for(const py of [y+1,y+w.h-5])ctx.fillRect(px,py,4,4);
+    if(frac<1)hpBarSmall(w.x,y-7,w.w,frac);return;
+  }
   if(def.trap){
     ctx.fillStyle=def.splash?'#efb56b':'#748d9b';ctx.strokeStyle='#a9c2c4';ctx.lineWidth=2;
     ctx.strokeRect(x,y,w.w,w.h);

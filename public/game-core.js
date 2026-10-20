@@ -163,11 +163,13 @@
     disruptor:{name:'Bozucu',hp:220,dmg:14,speed:55,r:19,money:55,attackCd:1.1,color:'#b991e2',disrupt:260},
     berserker:{name:'Öfkeli',hp:180,dmg:22,speed:72,r:21,money:45,attackCd:.8,color:'#d36b9c',rage:true}
   });
-  BUILD.wall.desc='Mermilerin üzerinden geçer · zombileri durdurur';
+  BUILD.wall.desc='Zombileri ve taret ateşini durdurur · oyuncu mermileri geçer';
+  BUILD.wall.blocksTurret=true;
   BUILD.wall.solid=true;
   BUILD.turret.desc='340 menzil · otomatik hedefleme';
   BUILD.turret.turret=true;
   Object.assign(BUILD, {
+    fence:{name:'Demir Çit',cost:140,hp:300,w:54,h:54,solid:true,mesh:true,desc:'Zombileri ve oyuncuları durdurur · taret ateşi ve asit geçer'},
     reinforced:{name:'Çelik Barikat',cost:110,hp:700,w:54,h:54,solid:true,desc:'700 can · uzun savunmalar için'},
     gate:{name:'Geçiş Kapısı',cost:85,hp:300,w:54,h:54,desc:'Oyuncular geçer · zombiler geçemez'},
     spikes:{name:'Dikenli Tel',cost:65,hp:180,w:64,h:64,trap:true,slow:.5,dps:14,desc:'Geçen zombiyi %50 yavaşlatır ve yaralar'},
@@ -175,6 +177,8 @@
     sniperTurret:{name:'Keskin Taret',cost:700,hp:260,w:46,h:46,turret:true,range:620,rate:1.15,damage:95,bulletSpeed:1200,pierce:2,armorPierce:true,desc:'Uzun menzil · zırh delici · 3 hedef'},
     frostTurret:{name:'Kriyo Taret',cost:500,hp:260,w:46,h:46,turret:true,range:290,rate:.45,damage:12,bulletSpeed:700,slow:2.5,desc:'Yaklaşanları yavaşlatır; geç gecelerde etkisine direnç gelişir'}
   });
+  BUILD.reinforced.blocksTurret=true;BUILD.gate.blocksTurret=true;
+  BUILD.reinforced.desc+=' · taret ateşini keser';BUILD.gate.desc+=' · taret ateşini keser';
   SHOP.medkit.cost=45;
   SHOP.wallrepair.cost=15; SHOP.wallrepair.heal=160; SHOP.wallrepair.name='Yapı Tamiri';
   SHOP.baserepair.cost=100; SHOP.ammo.cost=20;

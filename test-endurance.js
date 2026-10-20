@@ -1,6 +1,6 @@
 'use strict';
 // Reproducible endgame benchmark: all upgrades, 10 tier-4 turrets and 40 tier-4
-// steel walls, but no player shooting, repairs or rebuilding. Not a predicted
+// iron fences, but no player shooting, repairs or rebuilding. Not a predicted
 // survival score for an active player.
 const assert=require('assert/strict'),C=require('./public/game-core');
 const {Room,tickTimer}=require('./server');
@@ -14,7 +14,7 @@ try{
     for(const [key,d] of Object.entries(C.UPGRADES))r.upgrades[key]=d.max;
     p.maxHp=p.hp=C.PLAYER.hp+25*r.upgrades.vitality;
     for(let i=0;i<10;i++){const a=i*Math.PI*2/10;assert.ok(r.build(i%4===0?'frostTurret':'sniperTurret',r.base.x+Math.cos(a)*220,r.base.y+Math.sin(a)*220,p.id));}
-    for(let i=0;i<40;i++){const a=i*Math.PI*2/40;assert.ok(r.build('reinforced',r.base.x+Math.cos(a)*500,r.base.y+Math.sin(a)*500,p.id));}
+    for(let i=0;i<40;i++){const a=i*Math.PI*2/40;assert.ok(r.build('fence',r.base.x+Math.cos(a)*500,r.base.y+Math.sin(a)*500,p.id));}
     for(const w of r.walls){w.level=4;const s=C.structureStats(w.kind,4,r.upgrades.fortification);w.hp=w.maxHp=s.hp;if(C.BUILD[w.kind].turret)w.range=s.range;}
     let steps=0,peak=0;
     while(r.state==='playing'&&r.wave<=35&&steps<150000){if(r.phase==='prep')r.timer=0;r.update(.1);peak=Math.max(peak,r.zombies.length);r.events=[];steps++;}
