@@ -181,6 +181,7 @@
   #roomChip {top:72px;}
   @media(max-width:760px) {#baseBox{width:220px;top:65px}#roomChip{top:120px}#feed{top:145px;max-width:220px}.title{letter-spacing:4px}.card{min-width:320px;padding:16px}#hpBox{width:170px}#actionDock{bottom:90px}#actionDock button{font-size:9px;padding:8px}#goldBox .g{font-size:20px}#shop{top:145px;width:290px}#gameBrand{font-size:14px}.menuStory{font-size:13px}}
 </style>
+<link rel="stylesheet" href="armory.css">
 </head>
 <body>
 
@@ -205,7 +206,7 @@
     <div class="hint">
       Kurduğun oda kodunu arkadaşlarına ver, onlar bu ekrandan katılsın.<br>
       <kbd>WASD</kbd> hareket · fare nişan · <kbd>Tık</kbd> ateş · <kbd>R</kbd> şarjör<br>
-      <kbd>B</kbd> market · <kbd>1</kbd>-<kbd>5</kbd> silah seç · <kbd>Tab</kbd> skor
+      <kbd>B</kbd> market · <kbd>1–9</kbd> / <kbd>Q E</kbd> silah değiştir · <kbd>Tab</kbd> skor
     </div>
   </div>
 </div>
@@ -225,7 +226,7 @@
 
 <!-- HUD -->
 <div id="hud" class="hidden">
-  <div id="feed"></div><div id="gameBrand">SON ŞAFAK <span id="phaseLabel">HAZIRLIK</span></div><div id="actionDock"><button id="marketBtn" class="secondary">MARKET [B]</button><button id="waveBtn" class="secondary">DALGAYI BAŞLAT [BOŞLUK]</button><button id="muteBtn" class="secondary">SES AÇIK</button></div>
+  <div id="feed"></div><div id="gameBrand">SON ŞAFAK <span id="phaseLabel">HAZIRLIK</span></div><div id="actionDock"><button id="marketBtn" class="secondary">MARKET [B]</button><button id="waveBtn" class="secondary">GECEYİ BAŞLAT [BOŞLUK]</button><button id="muteBtn" class="secondary">SES AÇIK</button></div>
   <div id="baseBox" class="hudPanel">
     <div class="lbl">ÜS SAĞLIĞI</div>
     <div class="bar"><i id="baseBar" style="width:100%; background:linear-gradient(90deg,#3fbf6f,#7be495)"></i><b id="baseTxt"></b></div>
@@ -233,7 +234,7 @@
   </div>
   <div id="goldBox" class="hudPanel">
     <div class="g">$ <span id="goldVal">0</span></div>
-    <div class="wv">DALGA <b id="waveVal">0</b> · <b id="killVal">0</b> ÖLDÜRME</div>
+    <div class="wv">GECE <b id="waveVal">0</b> · <b id="killVal">0</b> ÖLDÜRME</div>
   </div>
   <div id="hpBox" class="hudPanel">
     <div class="bar" style="height:19px"><i id="hpBar" style="width:100%; background:linear-gradient(90deg,#e03e3e,#ff8a6b)"></i><b id="hpTxt"></b></div>
@@ -247,7 +248,7 @@
   <div id="centerMsg" class="hidden"></div>
   <div id="buildHint" class="hidden"></div>
   <div id="scoreboard" class="hudPanel hidden"></div>
-  <div id="shop" class="hidden"></div>
+  <div id="nightForecast"></div><div id="weaponBelt" aria-label="Cephanelik"></div><div id="shop" class="hidden" role="dialog" aria-label="Saha marketi"></div>
   <div id="downOverlay" class="hidden">
     <div class="t">YERE DÜŞTÜN</div>
     <div class="s" id="downTxt"></div>

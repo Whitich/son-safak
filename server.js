@@ -6,11 +6,12 @@ const { WebSocketServer } = require('ws');
 const C = require('./public/game-core.js');
 
 const PORT = process.env.PORT || 3000;
+const VERSION = '2.0.0';
 const TICK = 1 / 30;
 
 const app = express();
 app.use(express.static(path.join(__dirname, 'public')));
-app.get('/_health', (_q, res) => res.json({ ok: true, rooms: rooms.size }));
+app.get('/_health', (_q, res) => res.json({ ok: true, version: VERSION, rooms: rooms.size }));
 
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server, maxPayload: 16 * 1024 });
@@ -36,7 +37,7 @@ class Room {
     this.state = 'lobby';
     this.phase = 'prep';
     this.wave = 0;
-    this.timer = 12;
+    this.timer = 45;
     this.gold = 0;
     this.base = { x: C.BASE.x, y: C.BASE.y, r: C.BASE.r, hp: C.BASE.hp, maxHp: C.BASE.hp };
     this.walls = [];
@@ -58,7 +59,7 @@ class Room {
       y: this.base.y + Math.sin(ang) * (this.base.r + 70),
       a: 0, hp: C.PLAYER.hp, maxHp: C.PLAYER.hp, r: C.PLAYER.r,
       money: 0, weapon: 'pistol', owned: ['pistol'],
-      ammo: C.WEAPONS.pistol.mag,
+      ammo: C.WEAPONS.pistol.mag, ammoStore: {}, upgrades: {vitality:0,mobility:0,power:0,handling:0},
       reloadT: 0, fireT: 0, state: 'alive', bleed: 0, reviveProg: 0,
       kills: 0, mx: 0, my: 0, aim: 0, fire: false, rel: false
     };
@@ -97,8 +98,8 @@ class Room {
     this.state = 'playing';
     this.phase = 'prep';
     this.wave = 0;
-    this.timer = 12;
-    this.gold = 100 + 150 * Math.max(1, this.players.size);
+    this.timer = 45;
+    this.gold = C.startingGold(this.players.size);
     this.base.hp = this.base.maxHp;
     this.walls = [];
     this.zombies = [];
@@ -109,10 +110,10 @@ class Room {
       p.hp = p.maxHp = C.PLAYER.hp;
       p.money = C.PLAYER.startMoney;
       p.weapon = 'pistol';
-      p.owned = ['pistol'];
+      p.owned = ['pistol']; p.ammoStore = {}; p.upgrades = {vitality:0,mobility:0,power:0,handling:0};
       p.ammo = C.WEAPONS.pistol.mag;
       p.reloadT = 0; p.fireT = 0; p.state = 'alive'; p.bleed = 0;
-      p.reviveProg = 0; p.kills = 0;
+      p.reviveProg = 0; p.kills = 0; p.mx = p.my = 0; p.fire = p.rel = p.firedLatch = false;
       const ang = Math.random() * Math.PI * 2;
       p.x = this.base.x + Math.cos(ang) * (this.base.r + 70);
       p.y = this.base.y + Math.sin(ang) * (this.base.r + 70);
@@ -121,7 +122,8 @@ class Room {
 
   build(kind, x, y, playerId) {
     const def = C.BUILD[kind];
-    if (!def || this.state !== 'playing') return false;
+    const builder = this.players.get(playerId);
+    if (!def || !builder || builder.state !== 'alive' || this.state !== 'playing') return false;
     if (this.gold < def.cost) return false;
     x = Math.round(x); y = Math.round(y);
     if (x < def.w / 2 + 10 || y < def.h / 2 + 10 || x > C.WORLD.w - def.w / 2 - 10 || y > C.WORLD.h - def.h / 2 - 10) return false;
@@ -135,12 +137,15 @@ class Room {
     for (const z of this.zombies) {
       if (Math.hypot(z.x - x, z.y - y) < z.r + Math.max(def.w, def.h) * 0.5) return false;
     }
+    for (const p of this.players.values()) {
+      if (p.state !== 'dead' && circleRect(p.x,p.y,p.r+3,x-def.w/2,y-def.h/2,def.w,def.h)) return false;
+    }
     this.gold -= def.cost;
     const wall = {
       x, y, w: def.w, h: def.h, hp: def.hp, maxHp: def.hp,
       kind, turretT: 0, angle: 0
     };
-    if (kind === 'turret') wall.range = def.range;
+    if (def.turret) wall.range = def.range;
     this.walls.push(wall);
     this.events.push({ e: 'bld', x, y, k: kind });
     return true;
@@ -152,20 +157,20 @@ class Room {
     if (this.state !== 'playing') return false;
     if (C.WEAPONS[item]) {
       const def = C.WEAPONS[item];
-      if (p.owned.includes(item)) {
-        p.weapon = item;
-        p.ammo = def.mag;
-        p.reloadT = 0;
-        return true;
-      }
+      if (p.owned.includes(item)) return this.equip(p,item);
       if (this.gold < def.cost) return false;
       this.gold -= def.cost;
       p.owned.push(item);
-      p.weapon = item;
-      p.ammo = def.mag;
-      p.reloadT = 0;
+      this.equip(p,item);
       this.events.push({ e: 'buy', id: p.id, item: def.name });
       return true;
+    }
+    if (C.UPGRADES[item]) {
+      const def=C.UPGRADES[item], level=p.upgrades[item]||0, price=def.cost*(level+1);
+      if(level>=def.max || this.gold<price) return false;
+      this.gold-=price;p.upgrades[item]=level+1;
+      if(item==='vitality'){p.maxHp+=25;p.hp=Math.min(p.maxHp,p.hp+25);}
+      this.events.push({e:'buy',id:p.id,item:def.name+' '+(level+1)});return true;
     }
     const def = C.SHOP[item];
     if (!def || this.gold < def.cost) return false;
@@ -180,11 +185,11 @@ class Room {
       if (this.base.hp >= this.base.maxHp) return false;
       this.base.hp = Math.min(this.base.maxHp, this.base.hp + def.heal);
     } else if (item === 'wallrepair') {
-      let best = null, bestFrac = 1;
+      let best = null, bestDist = 420;
       for (const w of this.walls) {
         if (w.hp >= w.maxHp) continue;
-        const f = w.hp / w.maxHp;
-        if (f < bestFrac && Math.hypot(w.x - p.x, w.y - p.y) < 420) { best = w; bestFrac = f; }
+        const d = Math.hypot(w.x-p.x,w.y-p.y);
+        if (d < bestDist) { best = w; bestDist = d; }
       }
       if (!best) return false;
       best.hp = Math.min(best.maxHp, best.hp + def.heal);
@@ -192,6 +197,40 @@ class Room {
     this.gold -= def.cost;
     this.events.push({ e: 'buy', id: p.id, item: def.name });
     return true;
+  }
+
+  equip(p, weapon) {
+    if(!p || p.state!=='alive' || !p.owned.includes(weapon) || !C.WEAPONS[weapon]) return false;
+    if(p.weapon===weapon) return true;
+    p.ammoStore[p.weapon]=p.ammo;
+    p.weapon=weapon;p.ammo=p.ammoStore[weapon] ?? C.WEAPONS[weapon].mag;
+    p.reloadT=0;p.fireT=Math.max(.2,p.fireT);p.firedLatch=false;
+    if(p.ammo===0)this.startReload(p);
+    return true;
+  }
+
+  salvage(x,y,playerId) {
+    const p=this.players.get(playerId);
+    if(!p || p.state!=='alive' || this.state!=='playing' || !Number.isFinite(x)||!Number.isFinite(y)) return false;
+    const w=this.walls.find(w=>Math.abs(w.x-x)<w.w/2+12 && Math.abs(w.y-y)<w.h/2+12);
+    if(!w || Math.hypot(p.x-w.x,p.y-w.y)>300) return false;
+    const refund=Math.floor(C.BUILD[w.kind].cost*.4*w.hp/w.maxHp);
+    this.gold+=refund;this.removeWall(w);send(p.ws,{t:'notice',m:'Yapı söküldü. Ortak kasaya +$'+refund});return true;
+  }
+
+  hitZombie(z,damage,owner,armorPierce=false,slow=0) {
+    if(z.hp<=0)return;
+    const def=C.ZOMBIES[z.type];
+    z.hp-=damage*(armorPierce?1:1-(def.armor||0));
+    z.aggro=8;z.aggroId=owner;
+    if(slow)z.slowT=Math.max(z.slowT||0,slow);
+    this.events.push({e:'h',x:z.x,y:z.y});
+    if(z.hp<=0){const p=this.players.get(owner);if(p)p.kills++;this.gold+=z.money;this.events.push({e:'k',x:z.x,y:z.y,t:z.type});}
+  }
+
+  blast(x,y,r,damage,owner){
+    for(const z of this.zombies)if(Math.hypot(z.x-x,z.y-y)<r+z.r)this.hitZombie(z,damage,owner,true);
+    this.events.push({e:'blast',x,y,r});
   }
 
   spawnWave() {
@@ -250,7 +289,7 @@ class Room {
             p.y = this.base.y + Math.sin(ang) * (this.base.r + 70);
           }
           p.state = 'alive'; p.hp = p.maxHp; p.bleed = 0; p.reviveProg = 0;
-          p.reloadT = 0; p.ammo = C.WEAPONS[p.weapon].mag;
+          p.ammoStore={};p.reloadT = 0; p.ammo = C.WEAPONS[p.weapon].mag;
           p.mx = 0; p.my = 0; p.fire = false; p.rel = false; p.firedLatch = false;
         }
         this.events.push({ e: 'wc', n: this.wave, b: bonus });
@@ -311,7 +350,7 @@ class Room {
       p.hp = Math.min(p.maxHp, p.hp + C.PLAYER.regen * dt);
 
       const len = Math.hypot(p.mx, p.my) || 1;
-      const spd = C.PLAYER.speed * dt;
+      const spd = C.PLAYER.speed * (1+.08*(p.upgrades.mobility||0)) * dt;
       const nx = p.x + (p.mx / len) * spd;
       const ny = p.y + (p.my / len) * spd;
       if (!this.solidForPlayer(nx, p.y, p.r)) p.x = C.clamp(nx, p.r, C.WORLD.w - p.r);
@@ -333,7 +372,7 @@ class Room {
 
   startReload(p) {
     const w = C.WEAPONS[p.weapon];
-    p.reloadT = w.reload;
+    p.reloadT = w.reload * (1-.1*(p.upgrades.handling||0));
     this.events.push({ e: 'rl', id: p.id });
   }
 
@@ -346,8 +385,8 @@ class Room {
         x: p.x + Math.cos(p.a) * (p.r + 6),
         y: p.y + Math.sin(p.a) * (p.r + 6),
         vx: Math.cos(a) * w.speed, vy: Math.sin(a) * w.speed,
-        dmg: w.damage, pierce: w.pierce, life: w.range / w.speed,
-        owner: p.id, a
+        dmg: w.damage*(1+.1*(p.upgrades.power||0)), slow:w.slow, splash:w.splash, armorPierce:w.armorPierce, hit:new Set(), pierce: w.pierce, life: w.range / w.speed,
+        owner: p.id, color:w.color, a
       });
     }
     if (p.ammo <= 0) this.startReload(p);
@@ -356,40 +395,36 @@ class Room {
   solidForPlayer(x, y, r) {
     if (Math.hypot(x - this.base.x, y - this.base.y) < this.base.r + r) return true;
     for (const w of this.walls) {
-      if (w.kind !== 'wall') continue;
+      if (!C.BUILD[w.kind].solid) continue;
       if (circleRect(x, y, r, w.x - w.w / 2, w.y - w.h / 2, w.w, w.h)) return true;
     }
     return false;
   }
 
   updateBullets(dt) {
-    const alive = [];
-    for (const b of this.bullets) {
-      b.x += b.vx * dt; b.y += b.vy * dt; b.life -= dt;
-      let dead = b.life <= 0 || b.x < -20 || b.y < -20 || b.x > C.WORLD.w + 20 || b.y > C.WORLD.h + 20;
-      if (!dead) {
-        for (const z of this.zombies) {
-          if (z.hp <= 0) continue;
-          if (Math.hypot(z.x - b.x, z.y - b.y) < z.r + 4) {
-            z.hp -= b.dmg;
-            z.aggro = 8; z.aggroId = b.owner;
-            this.events.push({ e: 'h', x: b.x, y: b.y });
-            if (z.hp <= 0) {
-              const p = this.players.get(b.owner);
-              if (p) p.kills++;
-              this.gold += z.money;
-              this.events.push({ e: 'k', x: z.x, y: z.y, t: z.type });
-            }
-            if (b.pierce > 0) b.pierce--;
-            else { dead = true; }
-            break;
-          }
-        }
+    const alive=[];
+    for(const b of this.bullets){
+      const ox=b.x,oy=b.y,travel=Math.min(dt,Math.max(0,b.life));
+      b.x+=b.vx*travel;b.y+=b.vy*travel;b.life-=dt;
+      const dx=b.x-ox,dy=b.y-oy,len=dx*dx+dy*dy;
+      b.hit ||= new Set();
+      const hits=[];
+      for(const z of this.zombies){
+        if(z.hp<=0||b.hit.has(z.i))continue;
+        const t=len?Math.max(0,Math.min(1,((z.x-ox)*dx+(z.y-oy)*dy)/len)):0;
+        if(Math.hypot(z.x-(ox+dx*t),z.y-(oy+dy*t))<z.r+4)hits.push({z,t});
       }
-      if (!dead) alive.push(b);
+      hits.sort((a,b)=>a.t-b.t);let dead=false;
+      for(const {z,t} of hits){
+        b.hit.add(z.i);
+        if(b.splash){this.blast(ox+dx*t,oy+dy*t,b.splash,b.dmg,b.owner);dead=true;break;}
+        this.hitZombie(z,b.dmg,b.owner,b.armorPierce,b.slow);
+        if(b.pierce>0)b.pierce--;else {dead=true;break;}
+      }
+      if(!dead&&b.life<=0&&b.splash)this.blast(b.x,b.y,b.splash,b.dmg,b.owner);
+      if(!dead&&b.life>0&&b.x>=0&&b.y>=0&&b.x<=C.WORLD.w&&b.y<=C.WORLD.h)alive.push(b);
     }
-    this.bullets = alive;
-    this.zombies = this.zombies.filter(z => z.hp > 0);
+    this.bullets=alive;this.zombies=this.zombies.filter(z=>z.hp>0);
   }
 
   updateAcids(dt) {
@@ -411,7 +446,7 @@ class Room {
       }
       if (!dead) {
         for (const w of this.walls) {
-          if (w.kind === 'wall' && circleRect(a.x, a.y, 4, w.x - w.w / 2, w.y - w.h / 2, w.w, w.h)) {
+          if (!C.BUILD[w.kind].trap && circleRect(a.x, a.y, 4, w.x - w.w / 2, w.y - w.h / 2, w.w, w.h)) {
             w.hp -= a.dmg; dead = true;
             if (w.hp <= 0) this.removeWall(w);
             break;
@@ -444,7 +479,8 @@ class Room {
 
   updateTurrets(dt) {
     for (const w of this.walls) {
-      if (w.kind !== 'turret') continue;
+      const def=C.BUILD[w.kind];
+      if (!def.turret) continue;
       w.turretT -= dt;
       if (w.turretT > 0) continue;
       let best = null, bd = w.range;
@@ -453,22 +489,33 @@ class Room {
         if (d < bd) { bd = d; best = z; }
       }
       if (!best) continue;
-      const def = C.BUILD.turret;
+      // Each turret uses its own range, fire rate and projectile effects.
       w.turretT = def.rate;
       const a = Math.atan2(best.y - w.y, best.x - w.x);
       w.angle = a;
       this.bullets.push({
         x: w.x + Math.cos(a) * 26, y: w.y + Math.sin(a) * 26,
         vx: Math.cos(a) * def.bulletSpeed, vy: Math.sin(a) * def.bulletSpeed,
-        dmg: def.damage, pierce: 0, life: def.range / def.bulletSpeed,
-        owner: -1, a
+        dmg: def.damage, pierce: def.pierce||0, slow:def.slow, armorPierce:def.armorPierce, life: def.range / def.bulletSpeed,
+        owner: -1, color:def.slow?'#8fe8ff':def.armorPierce?'#d4aeff':'#a8ffcf', a
       });
     }
   }
 
   updateZombies(dt) {
     const n = Math.max(1, this.players.size);
+    for (const w of [...this.walls]) {
+      const def=C.BUILD[w.kind];if(!def.trap)continue;
+      if(def.splash){if(this.zombies.some(z=>z.hp>0&&Math.hypot(z.x-w.x,z.y-w.y)<65)){this.blast(w.x,w.y,def.splash,def.damage,0);this.removeWall(w);}continue;}
+      let touched=false;
+      for(const z of this.zombies)if(z.hp>0&&circleRect(z.x,z.y,z.r,w.x-w.w/2,w.y-w.h/2,w.w,w.h)){z.slowT=.3;this.hitZombie(z,def.dps*dt,0);touched=true;}
+      if(touched){w.hp-=8*dt;if(w.hp<=0)this.removeWall(w);}
+    }
     for (const z of this.zombies) {
+      if(z.hp<=0)continue;
+      const zd=C.ZOMBIES[z.type];
+      z.slowT=Math.max(0,(z.slowT||0)-dt);
+      if(zd.healAura)for(const ally of this.zombies)if(ally!==z&&ally.hp>0&&Math.hypot(ally.x-z.x,ally.y-z.y)<160)ally.hp=Math.min(ally.maxHp,ally.hp+zd.healAura*dt);
       z.atk -= dt;
       z.aggro -= dt;
 
@@ -485,6 +532,7 @@ class Room {
         }
       }
 
+      if(zd.siege)target=null;
       const isSpit = z.range > 0;
       const aimX = target ? target.x : this.base.x;
       const aimY = target ? target.y : this.base.y;
@@ -517,7 +565,7 @@ class Room {
       }
       if (isSpit && target && dist < 150) {
         const a = Math.atan2(z.y - target.y, z.x - target.x);
-        this.moveZombie(z, z.x + Math.cos(a) * z.speed * dt, z.y + Math.sin(a) * z.speed * dt, dt);
+        this.moveZombie(z, z.x + Math.cos(a) * z.speed * (z.slowT>0?.5:1) * (zd.rage&&z.hp<z.maxHp*.5?1.7:1) * dt, z.y + Math.sin(a) * z.speed * (z.slowT>0?.5:1) * (zd.rage&&z.hp<z.maxHp*.5?1.7:1) * dt, dt);
         continue;
       }
       if (!target && Math.hypot(z.x - this.base.x, z.y - this.base.y) < this.base.r + z.r + 6) {
@@ -530,18 +578,19 @@ class Room {
       }
 
       const d = Math.hypot(aimX - z.x, aimY - z.y) || 1;
-      const nx = z.x + (aimX - z.x) / d * z.speed * dt;
-      const ny = z.y + (aimY - z.y) / d * z.speed * dt;
+      const nx = z.x + (aimX - z.x) / d * z.speed * (z.slowT>0?.5:1) * (zd.rage&&z.hp<z.maxHp*.5?1.7:1) * dt;
+      const ny = z.y + (aimY - z.y) / d * z.speed * (z.slowT>0?.5:1) * (zd.rage&&z.hp<z.maxHp*.5?1.7:1) * dt;
       const blocked = this.moveZombie(z, nx, ny, dt);
       if (blocked && blocked !== 'base') {
         if (z.atk <= 0) {
           z.atk = z.attackCd;
-          blocked.hp -= z.dmg;
+          blocked.hp -= z.dmg*(zd.siege||1);
           this.events.push({ e: 'whp', x: blocked.x, y: blocked.y });
           if (blocked.hp <= 0) this.removeWall(blocked);
         }
       }
     }
+    this.zombies=this.zombies.filter(z=>z.hp>0);
     if (n !== this.lastPlayerCount) this.lastPlayerCount = n;
   }
 
@@ -549,6 +598,7 @@ class Room {
     nx = C.clamp(nx, z.r, C.WORLD.w - z.r);
     ny = C.clamp(ny, z.r, C.WORLD.h - z.r);
     for (const w of this.walls) {
+      if(C.BUILD[w.kind].trap)continue;
       if (circleRect(nx, ny, z.r, w.x - w.w / 2, w.y - w.h / 2, w.w, w.h)) return w;
     }
     if (Math.hypot(nx - this.base.x, ny - this.base.y) < this.base.r + z.r * 0.5) return 'base';
@@ -581,21 +631,21 @@ class Room {
         hp: Math.max(0, Math.round(p.hp)), mh: p.maxHp, s: p.state,
         w: p.weapon, mz: p.ammo, rl: p.reloadT > 0 ? +p.reloadT.toFixed(1) : 0,
         b: p.state === 'down' ? +p.bleed.toFixed(1) : 0,
-        rv: +p.reviveProg.toFixed(1), k: p.kills, n: p.name, c: p.color, o: p.owned
+        rv: +p.reviveProg.toFixed(1), k: p.kills, n: p.name, c: p.color, o: p.owned, u:p.upgrades
       });
     }
     for (const z of this.zombies) {
       Z.push({ i: z.i, x: +z.x.toFixed(1), y: +z.y.toFixed(1), hp: Math.max(0, Math.round(z.hp)), mh: z.maxHp, t: z.type });
     }
-    for (const b of this.bullets) B.push({ x: +b.x.toFixed(1), y: +b.y.toFixed(1), a: +b.a.toFixed(2), o: b.owner });
+    for (const b of this.bullets) B.push({ x: +b.x.toFixed(1), y: +b.y.toFixed(1), a: +b.a.toFixed(2), o: b.owner, v:Math.round(Math.hypot(b.vx,b.vy)), c:b.color });
     for (const a of this.acids) A.push({ x: +a.x.toFixed(1), y: +a.y.toFixed(1) });
     for (const w of this.walls) {
-      L.push({ x: w.x, y: w.y, w: w.w, h: w.h, hp: Math.max(0, Math.round(w.hp)), mh: w.maxHp, k: w.kind === 'turret' ? 1 : 0, a: +((w.angle || 0).toFixed(2)) });
+      L.push({ x: w.x, y: w.y, w: w.w, h: w.h, hp: Math.max(0, Math.round(w.hp)), mh: w.maxHp, kind:w.kind, k: C.BUILD[w.kind].turret ? 1 : 0, a: +((w.angle || 0).toFixed(2)) });
     }
     const ev = this.events;
     this.events = [];
     return {
-      t: 's', p: this.phase, w: this.wave, ti: +Math.max(0, this.timer).toFixed(1),
+      t: 's', q:this.queue.length, p: this.phase, w: this.wave, ti: +Math.max(0, this.timer).toFixed(1),
       g: Math.floor(this.gold), bh: Math.max(0, Math.round(this.base.hp)), bmh: this.base.maxHp,
       P, Z, B, A, L, ev, st: this.state
     };
@@ -653,16 +703,8 @@ wss.on('connection', ws => {
         break;
       }
       case 'buy': if (!room.buy(String(msg.item), id)) send(ws, {t:'notice', m:'Satın alınamadı: ortak para yetersiz, karakter ayakta değil veya bu desteğe şu an ihtiyaç yok.'}); break;
-      case 'equip': {
-        const p = room.players.get(id);
-        const w = String(msg.w);
-        if (p && p.owned && p.owned.includes(w) && C.WEAPONS[w]) {
-          p.weapon = w;
-          p.ammo = C.WEAPONS[w].mag;
-          p.reloadT = 0;
-        }
-        break;
-      }
+      case 'equip': room.equip(room.players.get(id),String(msg.w));break;
+      case 'salvage': if(!room.salvage(+msg.x,+msg.y,id))send(ws,{t:'notice',m:'Sökmek için yapıya yaklaş ve imleci üzerine getir (300 menzil).'});break;
       case 'build': { const ok = room.build(String(msg.k), +msg.x, +msg.y, id); send(ws, {t:'buildResult', ok}); break; }
       case 'start': if (id === room.hostId && room.state !== 'playing') { room.start(); room.broadcast({ t: 'gs', state: 'playing' }); } break;
       case 'skip': if (id === room.hostId && room.state === 'playing' && room.phase === 'prep') room.timer = 0; break;

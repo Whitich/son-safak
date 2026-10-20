@@ -1,6 +1,7 @@
 'use strict';
 const WebSocket = require('ws');
-const url = 'ws://localhost:3000';
+const url = process.env.TEST_URL || 'ws://localhost:3000';
+const C = require('./public/game-core');
 const results = [];
 function log(name, ok, extra) { results.push({ name, ok, extra }); console.log((ok ? 'PASS' : 'FAIL') + ' | ' + name + (extra ? ' | ' + extra : '')); }
 
@@ -58,7 +59,7 @@ const lastSnap = inbox => inbox.filter(m => m.t === 's').pop();
   await waitFor(a.inbox, m => m.t === 'gs', 3000);
   const snap = await waitFor(a.inbox, m => m.t === 's', 5000);
   log('oyun başladı', snap.st === 'playing' && snap.p === 'prep', 'phase=' + snap.p + ' altın=' + snap.g);
-  log('5 kişi başlangıç altını', snap.g === 850, 'g=' + snap.g);
+  log('5 kişi başlangıç altını', snap.g === C.startingGold(5), 'g=' + snap.g);
 
   // 5. dalga 1
   a.ws.send(JSON.stringify({ t: 'skip' }));

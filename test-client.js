@@ -27,3 +27,12 @@ assert.equal(shopWrites,1,'Identical snapshots must preserve shop buttons during
 vm.runInContext('gold -= 50; renderShop();',sandbox);
 assert.equal(shopWrites,2,'Shop must update after shared money changes');
 console.log('PASS | shop buttons remain stable across snapshots and update when money changes');
+
+vm.runInContext("placement='wall'; toggleShop();",sandbox);
+assert.equal(vm.runInContext('placement',sandbox),null,'B must exit placement instead of reopening a ghost');
+vm.runInContext("openShop(); placement='gate'; closeShop();",sandbox);
+assert.equal(vm.runInContext('placement',sandbox),null,'Closing market must cancel construction');
+vm.runInContext("for(const kind of Object.keys(G.BUILD))drawWall({kind,k:G.BUILD[kind].turret?1:0,x:500,y:500,w:G.BUILD[kind].w,h:G.BUILD[kind].h,hp:G.BUILD[kind].hp,mh:G.BUILD[kind].hp});",sandbox);
+vm.runInContext("for(const t of Object.keys(G.ZOMBIES))drawZombie({i:1,t,x:100,y:100,hp:10,mh:100},1000);",sandbox);
+assert.equal(depth,0);
+console.log('PASS | closing construction, all new structure and enemy renderers');

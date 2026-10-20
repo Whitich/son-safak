@@ -25,11 +25,11 @@ function makeRoom(nPlayers) {
   log('ölçek 1 kişi', s1.hp === 55 && s1.dmg === 9, 'hp=' + s1.hp);
   log('ölçek 5 kişi hp', s2.hp === Math.round(55 * 2.4), 'hp=' + s2.hp);
   log('ölçek 8 kişi hp', s8.hp === Math.round(55 * (1 + 0.35 * 7)), 'hp=' + s8.hp);
-  log('ölçek 8 kişi dmg', s8.dmg === +(9 * (1 + 0.35 * 7)).toFixed(1), 'dmg=' + s8.dmg);
+  log('ölçek 8 kişi dmg', s8.dmg === +(9 * (1 + 0.08 * 7)).toFixed(1), 'dmg=' + s8.dmg);
   const w10 = C.scaleZombie('walker', 10, 1);
   log('dalga ölçeği', w10.hp === Math.round(55 * (1 + 9 * 0.17)), 'hp=' + w10.hp);
   const boss = C.scaleZombie('boss', 5, 4);
-  log('boss ölçeği', boss.hp === Math.round(2200 * (1 + 4 * 0.17) * (1 + 0.35 * 3)), 'hp=' + boss.hp);
+  log('boss ölçeği', boss.hp === Math.round(C.ZOMBIES.boss.hp * (1 + 4 * 0.17) * (1 + 0.35 * 3)), 'hp=' + boss.hp);
 }
 
 // 2. dalga kompozisyonu
@@ -60,7 +60,7 @@ function makeRoom(nPlayers) {
   const p2 = room.addPlayer(fakeWs(), 'P2', '#0f0');
   z = room.zombies[0];
   log('katılınca can arttı', z.hp === Math.round(55 * 1.35), 'hp=' + z.hp);
-  log('katılınca hasar arttı', z.dmg === +(9 * 1.35).toFixed(1), 'dmg=' + z.dmg);
+  log('katılınca hasar arttı', z.dmg === +(9 * 1.08).toFixed(1), 'dmg=' + z.dmg);
   const p3 = room.addPlayer(fakeWs(), 'P3', '#00f');
   z = room.zombies[0];
   log('3. katılınca tekrar arttı', z.hp === Math.round(55 * 1.7), 'hp=' + z.hp);
@@ -182,28 +182,28 @@ function makeRoom(nPlayers) {
   log('tekrar alma ücretsiz envantere', room.buy('smg', p.id) && room.gold === 0);
   room.gold = 120;
   p.hp = 50;
-  log('medkit aldı', room.buy('medkit', p.id) && p.hp === p.maxHp && room.gold === 0, 'hp=' + p.hp);
+  log('medkit aldı', room.buy('medkit', p.id) && p.hp === p.maxHp && room.gold === 120-C.SHOP.medkit.cost, 'hp=' + p.hp);
   p.hp = p.maxHp;
   room.gold = 120;
   log('tam canda medkit reddi', !room.buy('medkit', p.id) && room.gold === 120);
   room.gold = 200;
   room.base.hp = 1000;
-  log('üs tamiri', room.buy('baserepair', p.id) && room.base.hp === 1450 && room.gold === 0);
+  log('üs tamiri', room.buy('baserepair', p.id) && room.base.hp === 1450 && room.gold === 200-C.SHOP.baserepair.cost);
   room.gold = 200;
   room.build('wall', 700, 500, p.id);
   room.gold = 80;
   const w = room.walls[0];
   w.hp = 10;
   p.x = w.x; p.y = w.y;
-  log('duvar tamiri', room.buy('wallrepair', p.id) && w.hp === 150, 'duvar=' + w.hp);
+  log('duvar tamiri', room.buy('wallrepair', p.id) && w.hp === 10+C.SHOP.wallrepair.heal && room.gold===80-C.SHOP.wallrepair.cost, 'duvar=' + w.hp);
 }
 
 // 10. dalga akışı: prep → wave → tümü ölünce → prep + bonus
 {
   const { room, list } = makeRoom(1);
   room.start();
-  log('başlangıç prep', room.phase === 'prep' && room.timer === 12);
-  log('başlangıç altın', room.gold === 250, 'g=' + room.gold);
+  log('başlangıç prep', room.phase === 'prep' && room.timer === 45);
+  log('başlangıç altın', room.gold === C.startingGold(1), 'g=' + room.gold);
   room.timer = 0.01;
   room.update(0.1);
   log('dalga 1 başladı', room.phase === 'wave' && room.wave === 1 && room.queue.length > 0);

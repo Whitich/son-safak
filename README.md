@@ -1,21 +1,31 @@
-# Son Şafak
+# Son Şafak 2.0
 
-Tarayıcıda 1–8 kişiyle oynanan zombi hayatta kalma ve üs savunma oyunu.
+[Tarayıcıda oyna](https://son-safak.onrender.com/) — 1–8 kişilik kooperatif zombi savunması.
+
+## Oynanış
+
+- WASD / oklar: hareket; fare: nişan; sol tuşu basılı tut: ateş; R: şarjör.
+- B: marketi aç/kapat; inşa seçiliyse iptal et. Esc / sağ tık da inşayı iptal eder.
+- 1–9, Q / E, fare tekerleği veya cephanelik düğmeleri: satın alınmış silahları değiştir. Silahlar ve geliştirmeler ölümle kaybolmaz. Her silah kendi şarjörünü korur.
+- Yapı seç, boş zemine sol tıkla. İnşa bir yerleştirmeden sonra otomatik kapanır. X: imleçteki yapıyı 300 menzilden sök, kalan cana göre %40 bedel iadesi al.
+- Boşluk: oda sahibi hazırlığı bitirir; Tab: ekip skorları.
+
+Market: 9 kalıcı silah, 8 yapı, 4 destek ve 4 kademeli kişisel geliştirme. Başlangıç ortak parası tek oyuncuda $550; ek oyuncu başına $200. İlk hazırlık 45 sn, sonraki hazırlıklar 30 sn. Market oyunu durdurmaz.
+
+Duvarlar ve kapılar dost mermileri engellemez. Kapı oyunculara geçiş verirken zombileri durdurur. Dikenli tel yavaşlatır ve hasar verir; mayın tek kullanımlık alan patlamasıdır. Taretlerin menzil ve etkileri farklıdır. Duvar $50 / 240 can; yapı tamiri $15 / 160 can.
+
+Her başarılı gecenin sonunda en az bir oyuncu ayaktaysa tüm ekip tam can ve şarjörle geri döner. Üs otomatik onarılmaz. Üs düşerse veya herkes ölürse maç biter.
+
+10 düşman türü geceler ilerledikçe açılır. Zırhlı hasarı azaltır; Magnum ve keskin taret zırh deler. Yıkıcı yapılara 3 kat hasar verir. Şifacı yakın zombileri iyileştirir. Öfkeli yarı canın altında hızlanır. Her 4. gece koşucu akını, her 5. gece büyük düşman gelir. Can, hasar, hız ve toplam düşman sayısı gecelerle artar; ekip büyüklüğü de hesaba katılır.
 
 ## Yerelde çalıştır
 
-Node.js 18 veya üstü ile: npm ci, ardından npm start. http://localhost:3000 adresini aç.
+Node.js 18+ ile npm ci ve npm start. http://localhost:3000 adresini aç. PORT ortam değişkeni desteklenir.
 
-WASD / oklar: hareket; fare: nişan; sol tık: ateş; R: şarjör; B: market; 1–5: silah; boşluk: hazırlığı bitir; Tab: skor.
+## Test ve yayın
 
-Tek başına hemen başla veya oda oluşturup kodunu arkadaşlarınla paylaş. Marketten barikat ve otomatik taret al, haritaya tıklayarak yerleştir. Sağ tık yerleştirmeyi iptal eder. Para ekipçe paylaşılır.
+npm test: oyun kuralları, çizim/market regresyonları ve yeni mekanik testleri. Çalışan sunucuda node test-sim.js çok oyunculu WebSocket testi yapar; TEST_URL ile başka sunucu seçilebilir.
 
-## Render
+render.yaml ücretsiz Frankfurt Node servisini tanımlar. Derleme: npm ci && npm test. Başlatma: npm start. Sağlık ve sürüm: /_health. GitHub main dalına push edilen commit otomatik yayınlanır. Yerel commit sonrasında git push gerekir.
 
-render.yaml ücretsiz Frankfurt Node web servisini tanımlar. Build: npm ci && npm test. Start: npm start. Sağlık: /_health. GitHub main dalına gönderilen her commit otomatik yayınlanır. Yalnızca yerel commit yeterli değildir; git push gerekir.
-
-Odalar bellekte tutulur; sunucu yeniden başladığında sıfırlanır. Ücretsiz servis boşta uyuyabilir; ilk açılış gecikebilir. Aynı oda tek sunucuda çalışır.
-
-## Kontrol
-
-npm test: oyun kuralları ve tarayıcı çizim regresyon testi. Sunucu çalışırken node test-sim.js: çok oyunculu WebSocket simülasyonu.
+Odalar bellekte tutulur ve sunucu yeniden başlayınca sıfırlanır. Ücretsiz servis boşta uyuyabilir, ilk açılış gecikebilir. Bir oda tek sunucuda çalışır.
