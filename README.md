@@ -1,4 +1,4 @@
-# Son Şafak 4.4
+# Son Şafak 5.0
 
 [Tarayıcıda oyna](https://son-safak.onrender.com/) — 1–8 kişilik kooperatif zombi savunması.
 
@@ -70,3 +70,13 @@ Taret hedeflemesi görüş hattını kontrol eder; kapalı hedef yerine açık h
 Silahlar, savunmalar, destekler, ekip geliştirmeleri, üsler ve tek tek yapı geliştirmeleri ürün çizimi taşır. Silah fiyatları yaklaşık %8 düşürüldü (en yakın $5'e yuvarlanır). Duvar $45, çelik barikat $100, kapı $80, demir çit $130; diğer yapı ve geliştirme fiyatları aynı kalır.
 
 Sol üstte ms (sunucuya gidiş-dönüş süresi) ve gerçek çizim FPS'i gösterilir. Zombi yön/adım çizimleri 384 girişli bir önbellekte yeniden kullanılır; ekran dışındaki zombiler çizilmez. Vuruş sesi sıklığı ve parçacık sayısı sınırlandırılır. Yüksek yenileme hızlarında gereksiz çizim yükünü azaltmak için çizim 60 FPS ile sınırlıdır; hareket/girdi ve sunucu güncellemesi bu sınıra bağlı değildir. Yerel 100 zombi görsel kontrolünde 60 FPS görüldü; bu, her cihaz veya internet bağlantısı için garanti değildir.
+
+## Atmosfer ve sığınak (5.0)
+
+Yeşil halka/kutu, tahliye işaretli bir sığınakla değiştirildi: zırhlı giriş, pencereler, havalandırma, seviye ile eklenen güneş paneli ve anten. Hasarla çatlak, duman, titreyen lambalar ve düşük can alarmı belirir; tamirle toparlanır. Yollar, yeşillik, enkaz izleri, yönlendirmeler ve çevre lambaları tek sefer çizilen zeminde bulunur. Görsel düzenleme fiziksel sığınak yarıçapını değiştirmez.
+
+Web Audio ile dış dosyasız atmosfer müziği: gündüz daha sıcak akorlar, gece düşük drone ve bas; ilerleyen gecelerde motif, ritim, boss katmanı ve düşük üs canında nabız eklenir. Sağ üstte ayrı müzik aç/kapat ve ses ayarı vardır; efekt sesinden bağımsız kaydedilir. Önceden sesi kapatan kullanıcının tercihi ilk geçişte korunur. Gizli sekmede müzik susar; maç bitince durur. Geçişlerde renk/ışık yumuşak değişir, son saniyelerde uzak uğultu duyulur, gece sonunda gün doğumu akoru çalar.
+
+İsabetlerde kısa görsel tepki, zırhta metal sesi/kıvılcımı, asit türlerinde farklı efekt, silahlarda küçük geri tepme ve namlu parlaması bulunur. Efekt bütçesi ve sprite önbelleği korunur.
+
+Gece sonu sunucu raporu gerçek süreyi, toplam öldürmeyi, tamir edilse bile alınan üs hasarını, yere düşmeleri, en çok öldüreni ve kurtaranı sayar. Gün doğumunda başarı etiketleri ve cihazdaki yeni rekor kutlaması gösterilir. İlave ceza, özel gece koşulu veya ekonomi/zorluk değişikliği eklenmedi.

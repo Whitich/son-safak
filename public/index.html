@@ -230,6 +230,8 @@
 
 <!-- HUD -->
 <div id="hud" class="hidden">
+  <div id="musicControls"><button id="musicBtn" type="button" aria-pressed="true">♫ MÜZİK AÇIK</button><label>MÜZİK <input id="musicVolume" type="range" min="0" max="100" value="35" aria-label="Müzik ses seviyesi"></label></div>
+  <section id="nightReport" class="hidden" aria-live="polite"><button id="closeNightReport" aria-label="Gece raporunu kapat">×</button><div id="nightReportContent"></div></section>
   <div id="feed"></div><div id="gameBrand">SON ŞAFAK <span id="phaseLabel">HAZIRLIK</span></div><div id="actionDock"><button id="marketBtn" class="secondary">MARKET [B]</button><button id="waveBtn" class="secondary">GECEYİ BAŞLAT [BOŞLUK]</button><button id="muteBtn" class="secondary">SES AÇIK</button></div>
   <div id="baseBox" class="hudPanel">
     <div class="lbl">ÜS SAĞLIĞI</div>
@@ -272,6 +274,7 @@
 <script src="character-art.js"></script>
 <script src="zombie-art.js"></script>
 <script src="market-art.js"></script>
+<script src="environment-art.js"></script>
 <script src="audio.js"></script><script src="menu-content.js"></script><script src="client.js"></script>
 </body>
 </html>

@@ -1,9 +1,20 @@
 'use strict';
 const vm=require('vm'),fs=require('fs'),assert=require('assert/strict');
-const events={},els=new Map();let starts=0,lastMaster=null;
+const events={},els=new Map();let starts=0,lastMaster=null;const gains=[],contexts=[],filters=[];
 const param=()=>({value:0,setValueAtTime(v){this.value=v},setTargetAtTime(v){this.value=v},exponentialRampToValueAtTime(v){this.value=v}});
 const node=()=>({connect(n){return n},disconnect(){},gain:param(),frequency:param(),start(){starts++},stop(){}});
-class AudioContext{constructor(){this.state='suspended';this.currentTime=0;this.sampleRate=8000}resume(){this.state='running';return Promise.resolve()}createGain(){const g=node();lastMaster ||= g;return g}createDynamicsCompressor(){return {connect(){},threshold:param(),knee:param(),ratio:param()}}createOscillator(){return node()}createBuffer(_,size){return {getChannelData(){return new Float32Array(size)}}}createBufferSource(){return node()}createBiquadFilter(){return node()}get destination(){return {}}}
+class AudioContext{constructor(){this.state='suspended';this.currentTime=0;this.sampleRate=8000;contexts.push(this)}resume(){this.state='running';return Promise.resolve()}createGain(){const g=node();lastMaster ||= g;gains.push(g);return g}createDynamicsCompressor(){return {connect(){},threshold:param(),knee:param(),ratio:param()}}createOscillator(){return node()}createBuffer(_,size){return {getChannelData(){return new Float32Array(size)}}}createBufferSource(){return node()}createBiquadFilter(){const n=node();filters.push(n);return n}get destination(){return {}}}
 const storage=new Map();const env={window:{AudioContext},document:{getElementById(id){if(!els.has(id))els.set(id,{dataset:{}});return els.get(id)},addEventListener(name,cb){events[name]=cb}},localStorage:{getItem:k=>storage.get(k)??null,setItem:(k,v)=>storage.set(k,v)},setTimeout:fn=>{fn()},console};
 vm.createContext(env);vm.runInContext(fs.readFileSync('public/audio.js','utf8'),env);
-(async()=>{assert.ok(events.pointerdown&&events.keydown);await env.window.GameAudio.test();assert.equal(env.window.GameAudio.state,'running');assert.equal(starts,2);env.window.GameAudio.noise(.1,.2,1000);assert.equal(starts,3);env.window.GameAudio.toggle();env.window.GameAudio.tone(440,.1);assert.equal(starts,3);assert.equal(lastMaster.gain.value,0);env.window.GameAudio.setVolume(.8);env.window.GameAudio.tone(440,.1);assert.equal(starts,4);assert.equal(storage.get('ss_volume'),'0.8');assert.equal(els.get('audioStatus').dataset.state,'running');console.log('PASS | gesture unlock, actual audio nodes, mute, volume and persistent settings');})().catch(e=>{console.error(e);process.exitCode=1});
+(async()=>{assert.ok(events.pointerdown&&events.keydown);await env.window.GameAudio.test();assert.equal(env.window.GameAudio.state,'running');assert.equal(starts,2);env.window.GameAudio.noise(.1,.2,1000);assert.equal(starts,3);env.window.GameAudio.toggle();env.window.GameAudio.tone(440,.1);assert.equal(starts,3);assert.equal(lastMaster.gain.value,0);env.window.GameAudio.setVolume(.8);env.window.GameAudio.tone(440,.1);assert.equal(starts,4);assert.equal(storage.get('ss_volume'),'0.8');assert.equal(els.get('audioStatus').dataset.state,'running');console.log('PASS | gesture unlock, actual audio nodes, mute, volume and persistent settings');
+const audio=env.window.GameAudio,base=starts;
+audio.setScene({active:true,phase:'wave',wave:1,baseRatio:1});audio.musicTick();assert.ok(starts>base);
+const musicGain=gains[1];assert.ok(musicGain.gain.value>0);
+audio.toggle();assert.equal(lastMaster.gain.value,0);assert.ok(musicGain.gain.value>0,'Music is independent of effects mute');
+audio.toggleMusic();assert.equal(musicGain.gain.value,0);const silent=starts;contexts[0].currentTime=3;audio.musicTick();assert.equal(starts,silent);
+audio.setMusicVolume(.5);assert.equal(storage.get('ss_music_volume'),'0.5');assert.ok(musicGain.gain.value>0);assert.equal(lastMaster.gain.value,0);
+contexts[0].currentTime=10;audio.setScene({active:true,phase:'prep',wave:11,baseRatio:1});audio.musicTick();const dayCutoff=filters[0].frequency.value;
+contexts[0].currentTime=11;audio.setScene({active:true,phase:'wave',wave:12,baseRatio:.2});audio.musicTick();assert.ok(filters[0].frequency.value>dayCutoff);
+contexts[0].currentTime=12;audio.setScene({active:false});audio.musicTick();assert.equal(musicGain.gain.value,0);
+console.log('PASS | independent procedural music, persistence, tension and stop on leaving');
+})().catch(e=>{console.error(e);process.exitCode=1});

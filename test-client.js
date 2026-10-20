@@ -6,13 +6,14 @@ const G = require('./public/game-core');
 const elements = new Map();
 const gradient = {addColorStop(){}};
 let depth=0,draws=0;
-const ctx = new Proxy({save(){depth++},restore(){depth--},fill(){draws++},createRadialGradient(){return gradient}}, {get(o,k){return k in o ? o[k] : ()=>{}},set(o,k,v){o[k]=v;return true}});
+const ctx = new Proxy({save(){depth++},restore(){depth--},fill(){draws++},createLinearGradient(){return gradient},createRadialGradient(){return gradient}}, {get(o,k){return k in o ? o[k] : ()=>{}},set(o,k,v){o[k]=v;return true}});
 function el(id){if(!elements.has(id)) elements.set(id,{value:'',classList:{add(){},remove(){},toggle(){},contains(){return false}},style:{},addEventListener(){},getContext(){return ctx},appendChild(){},children:[],textContent:'',innerHTML:''});return elements.get(id)}
 const sandbox={window:{GameCore:G},document:{getElementById:el,createElement:()=>el('temp')},innerWidth:1440,innerHeight:900,devicePixelRatio:1,performance:{now:()=>1000},addEventListener(){},localStorage:{getItem(){return ''},setItem(){}},requestAnimationFrame(){},setTimeout(){},console,location:{protocol:'http:',host:'localhost:3000'}};
 vm.createContext(sandbox);
 vm.runInContext(fs.readFileSync('./public/character-art.js','utf8'),sandbox);
 vm.runInContext(fs.readFileSync('./public/zombie-art.js','utf8'),sandbox);
 vm.runInContext(fs.readFileSync('./public/market-art.js','utf8'),sandbox);
+vm.runInContext(fs.readFileSync('./public/environment-art.js','utf8'),sandbox);
 vm.runInContext(fs.readFileSync('./public/client.js','utf8'),sandbox);
 vm.runInContext(`myId=1; enterGame(); onSnapshot({t:'s',g:250,w:0,p:'prep',ti:12,bh:3000,bmh:3000,L:[],Z:[],B:[],A:[],P:[{i:1,x:1390,y:800,c:'#fff',n:'Test',s:'alive',w:'pistol',mz:14,rl:0,hp:100,mh:100,k:0}],ev:[]}); render(1000);`,sandbox);
 assert.equal(depth,0,'Canvas save/restore must balance');
@@ -74,3 +75,10 @@ vm.runInContext('for(let i=0;i<100;i++)window.ZombieArt.drawCached(ctx,"runner",
 assert.equal(canvasBuilds,1,'Repeated infected poses reuse a sprite instead of rebuilding vector paths');
 sandbox.document.createElement=originalCreate;
 console.log('PASS | infected sprite cache reuses identical poses');
+
+vm.runInContext(`for(const level of [1,2,3,4])for(const hp of [1,.6,.2])window.EnvironmentArt.drawRefuge(ctx,level,hp,2400,.9);`,sandbox);
+vm.runInContext(`processEvents([{e:'wc',n:3,b:190,report:{duration:63,kills:15,baseDamage:0,downs:0,hunter:{name:'A <img>',count:7},rescuer:{name:'B',count:1}}}]);render(1000);`,sandbox);
+assert.equal(depth,0,'Night transitions, damaged refuge and hit effects balance canvas state');
+assert.ok(elements.get('nightReportContent').innerHTML.includes('ÜS HASARSIZ'));
+assert.ok(elements.get('nightReportContent').innerHTML.includes('A &lt;img&gt;'));
+console.log('PASS | refuge damage states, dawn report and escaped player names');

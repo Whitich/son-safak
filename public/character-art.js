@@ -4,7 +4,7 @@
   const G = window.GameCore;
   function shade(color,amount){return '#'+color.slice(1).match(/../g).map(v=>Math.round(Math.max(0,Math.min(255,parseInt(v,16)+amount))).toString(16).padStart(2,'0')).join('');}
   function palette(appearance){const ap=G.sanitizeAppearance(appearance),find=key=>G.APPEARANCE[key].find(v=>v.id===ap[key]).value;return {ap,upper:find('colors'),head:find('headColors'),lower:find('bottomColors'),skin:find('skins')};}
-  function draw(ctx, appearance, aim, stride = 0, movement = 0, down = false) {
+  function draw(ctx, appearance, aim, stride = 0, movement = 0, down = false, recoil = 0) {
     const {ap,upper:color,head,lower,skin}=palette(appearance);
     const box = (x,y,w,h,c,r=2) => {ctx.fillStyle=c;ctx.beginPath();ctx.roundRect(x,y,w,h,r);ctx.fill();};
     const oval = (x,y,rx,ry,c) => {ctx.fillStyle=c;ctx.beginPath();ctx.ellipse(x,y,rx,ry,0,0,Math.PI*2);ctx.fill();};
@@ -93,7 +93,7 @@
     }
     if(ap.outfits==='hazmat') {box(-7,-22,14,5,'#8ce0cf',2);box(-4,-16,8,5,'#253c40',2);}
     // The two body hands are drawn above; the weapon never adds extra hands.
-    ctx.save();ctx.translate(0,-3);ctx.rotate(aim);
+    ctx.save();ctx.translate(0,-3);ctx.rotate(aim);ctx.translate(-recoil,0);
     box(5,-4,23,7,'#111c24',2);box(13,-5,12,3,'#657a7c',1);
     box(26,-3,12,3,'#b0bcb3',1);box(10,2,5,7,'#263b3e',1);
     box(20,-6,4,2,'#b9caaf',0);

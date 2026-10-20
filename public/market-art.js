@@ -72,7 +72,7 @@
     const d=category==='weapons'?G.WEAPONS[id]:category==='build'?G.BUILD[id]:category==='support'?G.SHOP[id]:category==='upgrades'?G.UPGRADES[id]:G.BASE_LEVELS[level-1];
     let art=category==='weapons'?weapon(id):category==='build'?structure(id,level):category==='support'?support(id):category==='upgrades'?upgrade(id):'';
     if(category==='base'){
-      art=path('M33 34l47-24 49 24-49 24z','#789687')+path('M33 34l47 24v23L33 57z','#344e50')+path('M80 58l49-24v23L80 81z','#4d6f68')+rect(69,27,24,24,'#9ac9b6');
+      art=path('M33 34l47-24 49 24-49 24z','#789687')+path('M33 34l47 24v23L33 57z','#344e50')+path('M80 58l49-24v23L80 81z','#4d6f68')+rect(63,23,37,17,'#405c5b')+rect(67,25,4,12,'#9eafa1')+rect(77,25,4,12,'#9eafa1')+rect(87,25,4,12,'#9eafa1')+rect(89,55,15,18,'#182f37')+rect(92,57,9,13,'#a0ae97')+rect(48,47,12,7,'#d4bc84');
       for(let i=0;i<level;i++)art+=rect(42+i*21,59-i*2,10,6,'#d8cb95');
       if(level>2)art+=path('M43 29V12h15v10m47 0V12h14v17','none','#b7c9b2',5);
     }

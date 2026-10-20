@@ -6,7 +6,7 @@ const { WebSocketServer } = require('ws');
 const C = require('./public/game-core.js');
 
 const PORT = process.env.PORT || 3000;
-const VERSION = '4.4.0';
+const VERSION = '5.0.0';
 const TICK = 1 / 30;
 
 const app = express();
@@ -50,6 +50,7 @@ class Room {
     this.phase = 'prep';
     this.wave = 0;
     this.completed = 0;
+    this.nightStats=null;
     this.baseLevel = 1;
     this.nextWid = 1;
     this.timer = 45;
@@ -116,6 +117,7 @@ class Room {
     this.phase = 'prep';
     this.wave = 0;
     this.completed = 0;
+    this.nightStats=null;
     this.baseLevel = 1;
     this.nextWid = 1;
     this.timer = 45;
@@ -280,8 +282,8 @@ class Room {
     z.hp-=damage*(armorPierce?1:1-(def.armor||0));
     z.aggro=8;z.aggroId=owner;
     if(slow)z.slowT=Math.max(z.slowT||0,slow);
-    this.events.push({e:'h',x:z.x,y:z.y});
-    if(z.hp<=0){const p=this.players.get(owner);if(p)p.kills++;this.gold+=z.money;this.events.push({e:'k',x:z.x,y:z.y,t:z.type});}
+    this.events.push({e:'h',x:z.x,y:z.y,id:z.i,t:z.type,armor:!!def.armor&&!armorPierce});
+    if(z.hp<=0){if(this.nightStats)this.nightStats.kills++;const p=this.players.get(owner);if(p)p.kills++;this.gold+=z.money;this.events.push({e:'k',x:z.x,y:z.y,t:z.type});}
   }
 
   blast(x,y,r,damage,owner){
@@ -291,6 +293,7 @@ class Room {
 
   spawnWave() {
     this.wave++;
+    this.nightStats={duration:0,kills:0,baseDamage:0,downs:0,revives:new Map(),startKills:new Map([...this.players].map(([id,p])=>[id,p.kills]))};
     this.phase = 'wave';
     this.queue = C.waveComp(this.wave);
     this.spawnT = 0;
@@ -322,6 +325,7 @@ class Room {
   update(dt) {
     if (this.state !== 'playing') return;
 
+    if(this.phase==='wave'&&this.nightStats)this.nightStats.duration+=dt;
     if (this.phase === 'prep') {
       this.timer -= dt;
       if (this.timer <= 0) this.spawnWave();
@@ -333,6 +337,7 @@ class Room {
           this.spawnT = C.waveSpawnInterval(this.wave);
         }
       } else if (this.zombies.length === 0 && [...this.players.values()].some(p => p.state === 'alive') && this.base.hp > 0) {
+        const report=this.nightReport();
         const bonus = C.waveBonus(this.wave);
         this.gold += bonus;
         this.completed=this.wave;
@@ -349,7 +354,7 @@ class Room {
           p.ammoStore={};p.reloadT = 0; p.ammo = C.WEAPONS[p.weapon].mag;
           p.mx = 0; p.my = 0; p.fire = false; p.rel = false; p.firedLatch = false;
         }
-        this.events.push({ e: 'wc', n: this.wave, b: bonus });
+        this.events.push({ e: 'wc', n: this.wave, b: bonus, report });
       }
     }
 
@@ -389,6 +394,7 @@ class Room {
           p.reviveProg += dt;
           if (p.reviveProg >= C.PLAYER.reviveTime) {
             p.state = 'alive'; p.hp = Math.round(p.maxHp * 0.55);
+            if(this.nightStats)this.nightStats.revives.set(rescuer.id,(this.nightStats.revives.get(rescuer.id)||0)+1);
             p.reviveProg = 0; p.bleed = 0;
             this.events.push({ e: 'dr', id: p.id });
             continue;
@@ -525,7 +531,7 @@ class Room {
         }
       }
       if (!dead && Math.hypot(a.x - this.base.x, a.y - this.base.y) < this.base.r) {
-        this.base.hp -= a.dmg;
+        this.damageBase(a.dmg);
         this.events.push({ e: 'bh', x: a.x, y: a.y });
         dead = true;
       }
@@ -543,12 +549,30 @@ class Room {
     this.acids = alive;
   }
 
+  damageBase(amount){
+    if(this.nightStats)this.nightStats.baseDamage+=Math.min(Math.max(0,this.base.hp),amount);
+    this.base.hp-=amount;
+  }
+
+  nightReport(){
+    const s=this.nightStats||{duration:0,kills:0,baseDamage:0,downs:0,revives:new Map(),startKills:new Map()};
+    let hunter=null,rescuer=null;
+    for(const p of this.players.values()){
+      const kills=Math.max(0,p.kills-(s.startKills.get(p.id)||0)),revives=s.revives.get(p.id)||0;
+      if(kills>0&&(!hunter||kills>hunter.count))hunter={name:p.name,count:kills};
+      if(revives>0&&(!rescuer||revives>rescuer.count))rescuer={name:p.name,count:revives};
+    }
+    const alive=[...this.players.values()].filter(p=>p.state==='alive');
+    return {duration:Math.round(s.duration),kills:s.kills,baseDamage:Math.round(s.baseDamage),downs:s.downs,hunter,rescuer,clutch:this.base.hp/this.base.maxHp<.25||(alive.length===1&&this.players.size>1)||alive.some(p=>p.hp/p.maxHp<=.2)};
+  }
+
   damagePlayer(p, dmg) {
     if (p.state !== 'alive') return;
     p.hp -= dmg;
     this.events.push({ e: 'ph', id: p.id, x: p.x, y: p.y });
     if (p.hp <= 0) {
       p.hp = 0;
+      if(this.nightStats)this.nightStats.downs++;
       p.state = 'down';
       p.bleed = C.PLAYER.downBleed;
       p.reviveProg = 0;
@@ -669,7 +693,7 @@ class Room {
       if (!target && Math.hypot(z.x - this.base.x, z.y - this.base.y) < this.base.r + z.r + 6) {
         if (z.atk <= 0) {
           z.atk = z.attackCd;
-          this.base.hp -= z.dmg;
+          this.damageBase(z.dmg);
           this.events.push({ e: 'bh', x: this.base.x + (z.x - this.base.x) * 0.7, y: this.base.y + (z.y - this.base.y) * 0.7 });
         }
         continue;

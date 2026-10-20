@@ -12,6 +12,8 @@ let snapPrev = null, snapNext = null, snapNextAt = 0;
 let latest = null, latestAt = 0;
 let wallsLive = [], zombiesLive = [], playersLive = [];
 let particles = [], decals = [], shake = 0;
+let nightBlend=0,dawnUntil=0,reportUntil=0,lastBaseAlarm=-Infinity,warnedWave=0;
+const hitFlashes=new Map(),shotFlashes=new Map();
 let arcs=[],myLaserTime=0;
 let pingMs=null,pingSent=0,nextPing=0,fpsFrames=0,fpsStart=0,fpsValue=0,lastDraw=0,lastImpactSound=-Infinity;
 let placement = null;
@@ -123,7 +125,7 @@ function connect(name, create, code) {
   ws.onerror = () => err('Sunucuya bağlanılamadı');
   ws.onclose = () => {
     if (intentionalClose) return;
-    inGame = false;
+    inGame = false;window.GameAudio?.setScene({active:false});
     hudEl.classList.add('hidden');
     showScreen(menuEl);
     err('Bağlantı koptu');
@@ -183,7 +185,7 @@ function updateStartBtn(m) {
 function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
 
 function enterGame() {
-  playerPoses.clear();zFace.clear();pingMs=null;nextPing=0;fpsFrames=0;fpsStart=performance.now();
+  playerPoses.clear();zFace.clear();hitFlashes.clear();shotFlashes.clear();nightBlend=0;dawnUntil=0;reportUntil=0;warnedWave=0;$('nightReport').classList.add('hidden');pingMs=null;nextPing=0;fpsFrames=0;fpsStart=performance.now();
   inGame = true;
   snapPrev = snapNext = latest = null;
   keys.clear(); mouse.down = false;
@@ -224,6 +226,12 @@ function onSnapshot(m) {
     myState = me.s; myBleed = me.b; myRevive = me.rv;
     ownedWeaps = me.o || ['pistol']; myUpgrades=me.u||{};
   }
+  for(const p of m.P){const before=snapPrev?.P.find(old=>old.i===p.i);if(before&&before.w===p.w&&p.mz<before.mz&&p.s==='alive'){
+    shotFlashes.set(p.i,snapNextAt+75);
+    if(p.i===myId&&!['laser','flame'].includes(p.w))shake=Math.max(shake,p.w==='shotgun'?2:1);
+  }}
+  window.GameAudio?.setScene({active:inGame,phase,wave:waveN,baseRatio:baseHp/baseMax});
+  if(phase==='prep'&&phaseT<=5&&phaseT>0&&warnedWave!==waveN+1){warnedWave=waveN+1;noiseBurst(.55,.045,400);tone(92,.65,'triangle',.04,48);}
   processEvents(m.ev || []);
   updateHud();
   if (shopOpen) renderShop();
@@ -237,7 +245,11 @@ function processEvents(evs) {
         bloodBurst(e.x, e.y, 10);
         addDecal(e.x, e.y, 12 + Math.random() * 10);
         break;
-      case 'h': if(performance.now()-lastImpactSound>65){SFX.hit();lastImpactSound=performance.now();}spark(e.x,e.y);break;
+      case 'h': {
+        const now=performance.now();if(e.id)hitFlashes.set(e.id,{until:now+110,armor:e.armor});
+        if(now-lastImpactSound>65){if(e.armor)tone(1350,.045,'triangle',.07,750);else if(e.t==='spitter'||e.t==='mortar')noiseBurst(.055,.06,1100);else SFX.hit();lastImpactSound=now;}
+        spark(e.x,e.y,e.armor?'#bdd2dc':e.t==='spitter'||e.t==='mortar'?'#c0d385':'#c4a895');break;
+      }
       case 'ph': SFX.hurt(); if (e.id === myId) shake = Math.max(shake, 7); bloodBurst(e.x, e.y, 4); break;
       case 'bh':
         SFX.baseHit(); shake = Math.max(shake, 3);
@@ -255,14 +267,17 @@ function processEvents(evs) {
       case 'blast':
         shake=Math.max(shake,5);for(let i=0;i<20;i++){const a=Math.random()*Math.PI*2;particles.push({x:e.x,y:e.y,vx:Math.cos(a)*220,vy:Math.sin(a)*220,c:'#ffd189',r:4,life:.45,t:0});}SFX.wallBreak();break;
       case 'ws':
-        SFX.wave();
+        SFX.wave();tone(82,.65,'sawtooth',.035,43);noiseBurst(.4,.035,450);
+        $('nightReport').classList.add('hidden');
         centerMsg('GECE ' + e.n, G.nightInfo(e.n).desc, 3.5);
         break;
       case 'wc':
         if(G.BASE_LEVELS.some(d=>d.night===e.n))feed('Yeni üs kademesi açılabilir! Market → Üs Seviyesi.','#d8d19b');
-        try{const key='ss_record_'+(playersLive.length===1?'solo':'team');localStorage.setItem(key,String(Math.max(e.n,Number(localStorage.getItem(key))||0)));}catch{}
-        SFX.clear();
-        centerMsg('GECE ATLATILDI!', 'Herkes canlandı · Tam can · +' + e.b + '$', 3.5);
+        let record=false;
+        try{const key='ss_record_'+(playersLive.length===1?'solo':'team'),best=Number(localStorage.getItem(key))||0;record=e.n>best;localStorage.setItem(key,String(Math.max(e.n,best)));}catch{}
+        SFX.clear();window.GameAudio?.dawn(record);dawnUntil=performance.now()+8500;
+        showNightReport(e,record);
+        centerMsg('GÜN DOĞDU', 'Herkes canlandı · Tam can · +' + e.b + '$', 3.5);
         break;
       case 'dd':
         if (e.id === myId) { SFX.down(); downEl.classList.remove('hidden'); }
@@ -273,7 +288,7 @@ function processEvents(evs) {
         feed('<b style="color:#69d990">' + nameOf(e.id) + '</b> ayağa kalktı', '#69d990');
         break;
       case 'dk':
-        if (e.id === myId) { downEl.classList.add('hidden'); centerMsg('ÖLDÜN', 'Dalganın başında dirileceksin', 3); }
+        if (e.id === myId) { downEl.classList.add('hidden'); centerMsg('ÖLDÜN', 'Ekip geceyi atlatırsa dirileceksin', 3); }
         break;
       case 'buy':
         if (e.id === myId) { SFX.buy(); feed('Satın alındı: ' + esc(e.item), '#ffd166'); }
@@ -288,9 +303,24 @@ function processEvents(evs) {
     }
   }
 }
+function showNightReport(event,record){
+  const r=event.report||{duration:0,kills:0,baseDamage:0,downs:0};
+  const badges=[];
+  if(r.baseDamage===0)badges.push('ÜS HASARSIZ');
+  if(r.clutch)badges.push('SON ANDA KURTULDUNUZ');
+  if(r.downs===0)badges.push('EKİP AYAKTA KALDI');
+  if(record)badges.push('YENİ REKOR · '+event.n+' GECE');
+  const rows=[];if(r.hunter)rows.push('Gece avcısı: '+esc(r.hunter.name)+' · '+r.hunter.count+' öldürme');
+  if(r.rescuer)rows.push('Ekip kurtarıcısı: '+esc(r.rescuer.name)+' · '+r.rescuer.count+' kurtarma');
+  $('nightReportContent').innerHTML='<small>ŞAFAK RAPORU</small><h3>Gece '+event.n+' atlatıldı</h3><div class="reportBadges">'+badges.map(b=>'<span>'+b+'</span>').join('')+'</div><p>'+r.kills+' zombi · '+Math.floor(r.duration/60)+' dk '+r.duration%60+' sn · +$'+event.b+'</p><p>Üs hasarı: '+r.baseDamage+' · Yere düşme: '+r.downs+'</p>'+rows.map(row=>'<p>'+row+'</p>').join('');
+  $('nightReport').classList.remove('hidden');reportUntil=performance.now()+11000;
+}
+$('closeNightReport').onclick=()=>$('nightReport').classList.add('hidden');
+$('musicBtn').onclick=()=>window.GameAudio?.toggleMusic();
+$('musicVolume').addEventListener('input',e=>window.GameAudio?.setMusicVolume(+e.target.value/100));
 function nameOf(id) {
   const p = latest && latest.P.find(x => x.i === id);
-  return p ? esc(p.name) : '?';
+  return p ? esc(p.n) : '?';
 }
 
 /* ---------- particles ---------- */
@@ -315,6 +345,7 @@ function addDecal(x, y, r) {
 
 /* ---------- input ---------- */
 addEventListener('keydown', e => {
+  if(e.target?.matches?.('input,textarea,select')||(e.code==='Space'&&e.target?.tagName==='BUTTON'))return;
   if (e.code === 'Tab') { e.preventDefault(); if (inGame) { showScore = true; renderScore(); } return; }
   if (inGame && e.code==='KeyB' && !e.repeat){e.preventDefault();toggleShop();return;}
   if (inGame && !shopOpen && ['KeyQ','KeyE'].includes(e.code) && !e.repeat){cycleWeapon(e.code==='KeyQ'?-1:1);return;}
@@ -332,7 +363,7 @@ addEventListener('keydown', e => {
   }
 });
 addEventListener('blur', () => { keys.clear(); mouse.down = false; sendMsg({t:'in',mx:0,my:0,a:0,f:false,r:false}); });
-addEventListener('keydown', e => { if (inGame && ['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault(); });
+addEventListener('keydown', e => { if (inGame && !e.target?.matches?.('input,textarea,select') && !(e.code==='Space'&&e.target?.tagName==='BUTTON') && ['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault(); });
 addEventListener('keyup', e => {
   keys.delete(e.code);
   if (e.code === 'Tab') { showScore = false; scoreEl.classList.add('hidden'); }
@@ -511,7 +542,7 @@ function updateHud() {
   else { am.innerHTML = myAmmo + '<small>/' + w.mag + '</small>'; am.className = 'am' + (myAmmo <= w.mag * 0.25 ? ' low' : ''); }
 
   const rh = $('reviveHint');
-  if (myState === 'dead') rh.textContent = 'Ölüsün — dalganın başında dirileceksin';
+  if (myState === 'dead') rh.textContent = 'Ölüsün — ekip geceyi atlatırsa dirileceksin';
   else if (myState === 'down') rh.textContent = '';
   else {
     const ally = latest && latest.P.find(p => p.i !== myId && p.s === 'down');
@@ -544,7 +575,7 @@ function renderScore() {
 }
 
 function onGameOver(m) {
-  inGame = false;
+  inGame = false;window.GameAudio?.setScene({active:false});$('nightReport').classList.add('hidden');
   hudEl.classList.add('hidden');
   closeShop(); placement = null;
   SFX.over();
@@ -571,11 +602,15 @@ function loop(now) {
   requestAnimationFrame(loop);
   const dt = Math.min(0.05, (now - lastT) / 1000);
   lastT = now;
+  window.GameAudio?.musicTick();
   if (!inGame) {fpsFrames=0;fpsStart=now;return;}
   if(now-fpsStart>=1000){fpsValue=Math.round(fpsFrames*1000/(now-fpsStart));fpsFrames=0;fpsStart=now;$('connectionStats').textContent=(pingMs===null?'—':pingMs)+' ms · '+fpsValue+' FPS';}
   if(now>=nextPing&&ws?.readyState===1){pingSent=performance.now();sendMsg({t:'ping',id:pingSent});nextPing=now+2000;}
 
 
+  nightBlend+=( (phase==='wave'?1:0)-nightBlend)*Math.min(1,dt*.65);
+  if(reportUntil&&now>reportUntil){$('nightReport').classList.add('hidden');reportUntil=0;}
+  if(phase==='wave'&&baseHp/baseMax<.3&&now-lastBaseAlarm>4000){tone(740,.16,'triangle',.045,520);lastBaseAlarm=now;}
   // input → local prediction
   let mx = 0, my = 0;
   if (keys.has('KeyW') || keys.has('ArrowUp')) my -= 1;
@@ -705,7 +740,7 @@ function render(now) {
 
   const drawables = [];
   const visibleZombieIds=new Set(interpZombies.map(z=>z.i));
-  for(const id of zFace.keys())if(!visibleZombieIds.has(id))zFace.delete(id);
+  for(const id of zFace.keys())if(!visibleZombieIds.has(id)){zFace.delete(id);hitFlashes.delete(id);}
   for (const z of interpZombies) if(Math.abs(z.x-cam.x)<vw/(2*s)+100&&Math.abs(z.y-cam.y)<vh/(2*s)+100)drawables.push({ y: z.y, kind: 'z', e: z });
   for (const p of interpPlayers) drawables.push({ y: p.y, kind: 'p', e: p });
   drawables.sort((a, b) => a.y - b.y);
@@ -750,6 +785,9 @@ function render(now) {
   ctx.restore();
 
   ctx.save();ctx.setTransform(dpr,0,0,dpr,0,0);
+  if(nightBlend>.01){ctx.fillStyle='rgba(8,18,43,'+nightBlend*.16+')';ctx.fillRect(0,0,vw,vh);}
+  const dawn=Math.max(0,(dawnUntil-now)/8500);
+  if(dawn>0){const sunlight=ctx.createLinearGradient(0,0,vw,vh);sunlight.addColorStop(0,'rgba(255,205,132,'+dawn*.18+')');sunlight.addColorStop(1,'transparent');ctx.fillStyle=sunlight;ctx.fillRect(0,0,vw,vh);}
   const vignette=ctx.createRadialGradient(vw/2,vh/2,vh*.22,vw/2,vh/2,Math.max(vw,vh)*.65);
   vignette.addColorStop(0,'transparent');vignette.addColorStop(1,'#020809aa');ctx.fillStyle=vignette;ctx.fillRect(0,0,vw,vh);
   if(!shopOpen){ctx.strokeStyle='#c0ffe8';ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(mouse.x,mouse.y,7,0,Math.PI*2);ctx.moveTo(mouse.x-12,mouse.y);ctx.lineTo(mouse.x-4,mouse.y);ctx.moveTo(mouse.x+4,mouse.y);ctx.lineTo(mouse.x+12,mouse.y);ctx.moveTo(mouse.x,mouse.y-12);ctx.lineTo(mouse.x,mouse.y-4);ctx.moveTo(mouse.x,mouse.y+4);ctx.lineTo(mouse.x,mouse.y+12);ctx.stroke();}
@@ -764,69 +802,11 @@ function bulletSpeed(owner) {
   return w ? w.speed : 800;
 }
 
-function drawFloor() {
-  const s = getScale();
-  const x0 = cam.x - vw / 2 / s - 40, x1 = cam.x + vw / 2 / s + 40;
-  const y0 = cam.y - vh / 2 / s - 40, y1 = cam.y + vh / 2 / s + 40;
-  ctx.fillStyle = '#252c2b';
-  ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
-  ctx.strokeStyle = 'rgba(70, 90, 120, .16)';
-  ctx.lineWidth = 1;
-  const g = 80;
-  ctx.beginPath();
-  for (let x = Math.floor(x0 / g) * g; x < x1; x += g) { ctx.moveTo(x, y0); ctx.lineTo(x, y1); }
-  for (let y = Math.floor(y0 / g) * g; y < y1; y += g) { ctx.moveTo(x0, y); ctx.lineTo(x1, y); }
-  ctx.stroke();
-  // Deterministic paving, road markings and perimeter lights.
-  ctx.fillStyle = '#202728';
-  ctx.fillRect(0, G.BASE.y - 135, G.WORLD.w, 270);
-  ctx.fillRect(G.BASE.x - 135, 0, 270, G.WORLD.h);
-  ctx.strokeStyle = '#b49b5c55'; ctx.lineWidth = 3; ctx.setLineDash([30, 35]);
-  ctx.beginPath(); ctx.moveTo(0,G.BASE.y); ctx.lineTo(G.WORLD.w,G.BASE.y);
-  ctx.moveTo(G.BASE.x,0);ctx.lineTo(G.BASE.x,G.WORLD.h);ctx.stroke();ctx.setLineDash([]);
-  for(let i=0;i<160;i++) {
-    const x=(i*733+91)%G.WORLD.w,y=(i*397+63)%G.WORLD.h;
-    ctx.fillStyle=i%3===0?'#53605635':'#0b111145';
-    ctx.fillRect(x,y,3+i%8,2+i%5);
-  }
-  for(let x=80;x<G.WORLD.w;x+=160) {
-    ctx.fillStyle='#f4c778';ctx.shadowColor='#ffb64c';ctx.shadowBlur=22;
-    ctx.fillRect(x,18,8,5);ctx.fillRect(x,G.WORLD.h-23,8,5);
-  }
-  ctx.shadowBlur=0;
-  // world bounds
-  ctx.strokeStyle = 'rgba(255, 90, 90, .5)';
-  ctx.lineWidth = 4;
-  ctx.strokeRect(0, 0, G.WORLD.w, G.WORLD.h);
+function drawFloor(){
+  window.EnvironmentArt.drawGround(ctx);
+  window.EnvironmentArt.drawLamps(ctx,nightBlend);
 }
-
-function drawBase(now) {
-  const r = G.BASE.r;
-  const frac = baseMax > 0 ? baseHp / baseMax : 0;
-  ctx.save();
-  ctx.translate(G.BASE.x, G.BASE.y);
-  ctx.fillStyle = '#1b2431';
-  ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.fill();
-  ctx.strokeStyle = frac > 0.55 ? '#3fbf6f' : frac > 0.25 ? '#ffd166' : '#ff5a5a';
-  ctx.lineWidth = 7;
-  ctx.shadowColor = ctx.strokeStyle; ctx.shadowBlur = 18;
-  ctx.beginPath(); ctx.arc(0, 0, r - 3, 0, 7 * frac); ctx.stroke();
-  ctx.shadowBlur = 0;
-  ctx.strokeStyle = '#2c3a4e'; ctx.lineWidth = 7;
-  ctx.beginPath(); ctx.arc(0, 0, r - 3, 7 * frac, 7); ctx.stroke();
-  ctx.scale(.58,.58);
-  ctx.strokeStyle='#71827a';ctx.lineWidth=2;ctx.strokeRect(-65,-65,130,130);
-  ctx.fillStyle='#303f39';ctx.fillRect(-57,-57,114,114);
-  for(let i=-48;i<=48;i+=24){ctx.fillStyle='#506057';ctx.fillRect(i,-53,8,106);}
-  // core
-  const pulse = 0.6 + Math.sin(now / 300) * 0.4;
-  ctx.fillStyle = 'rgba(90, 200, 255,' + (0.35 + pulse * 0.3) + ')';
-  ctx.beginPath(); ctx.arc(0, 0, 34, 0, 7); ctx.fill();
-  ctx.fillStyle = '#0f151d';
-  ctx.font = 'bold 17px Segoe UI'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText('ÜS '+baseLevel, 0, 1);
-  ctx.restore();
-}
+function drawBase(now){window.EnvironmentArt.drawRefuge(ctx,baseLevel,baseHp/baseMax,now,nightBlend);}
 
 function drawWall(w) {
   const def=G.BUILD[w.kind || (w.k===1?'turret':'wall')];
@@ -900,8 +880,10 @@ function drawZombie(z, now) {
   zFace.set(z.i,{x:z.x,y:z.y,a:ang,stride});
   if(base.disrupt){ctx.strokeStyle='#b991e233';ctx.lineWidth=1.5;ctx.setLineDash([8,12]);ctx.beginPath();ctx.arc(z.x,z.y,base.disrupt,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);}
   if(base.healAura||base.boss){ctx.strokeStyle=base.boss?'#ff627955':'#60e2b955';ctx.lineWidth=2;ctx.beginPath();ctx.arc(z.x,z.y,r+7+Math.sin(now/250)*2,0,Math.PI*2);ctx.stroke();}
-  ctx.save();ctx.translate(z.x,z.y);
+  const flash=hitFlashes.get(z.i),hit=flash?Math.max(0,(flash.until-now)/110):0;
+  ctx.save();ctx.translate(z.x-Math.cos(ang)*hit*2,z.y-Math.sin(ang)*hit*2);
   window.ZombieArt.drawCached(ctx,z.t,ang,stride,now,base.rage&&z.hp<z.mh*.5);
+  if(hit>0){ctx.globalAlpha=hit*.45;ctx.globalCompositeOperation='screen';window.ZombieArt.drawCached(ctx,z.t,ang,stride,now,base.rage&&z.hp<z.mh*.5);}
   ctx.restore();
 
   if (z.hp < z.mh || base.boss) {
@@ -941,7 +923,12 @@ function drawPlayer(p, now) {
     ctx.beginPath();ctx.ellipse(x,y+17,20,8,0,0,Math.PI*2);ctx.stroke();
   }
   ctx.save();ctx.translate(x,y);
-  window.CharacterArt.draw(ctx,p.ap,aim,pose.stride,pose.moving,down);
+  const kick=Math.max(0,((shotFlashes.get(p.i)||0)-now)/75);
+  window.CharacterArt.draw(ctx,p.ap,aim,pose.stride,pose.moving,down,kick*2);
+  if(kick>0&&!down&&p.w!=='laser'){
+    ctx.save();ctx.translate(0,-3);ctx.rotate(aim);ctx.globalAlpha=kick;
+    ctx.fillStyle=G.WEAPONS[p.w]?.color||'#ffda89';ctx.beginPath();ctx.moveTo(35,-1);ctx.lineTo(44,-7);ctx.lineTo(42,-1);ctx.lineTo(51,0);ctx.lineTo(42,3);ctx.lineTo(44,8);ctx.lineTo(35,3);ctx.closePath();ctx.fill();ctx.restore();
+  }
   ctx.restore();
 
   if (down) {

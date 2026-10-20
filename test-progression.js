@@ -86,5 +86,14 @@ test('Only a cleared night increments the survival score',()=>{
   let message;for(const p of r.players.values())p.ws.send=data=>{message=JSON.parse(data)};
   r.gameOver();assert.equal(message.completed,4);assert.equal(message.wave,5);
 });
+test('Night report counts real damage even after repair, revives, kills and clutch state',()=>{
+  const {r,p}=setup();const ally=r.addPlayer(ws(),'Rescuer','#fff');p.x=p.y=300;ally.x=310;ally.y=300;
+  r.spawnWave();r.queue=[];r.damageBase(500);r.base.hp=r.base.maxHp;
+  r.damagePlayer(p,1000);r.updatePlayers(C.PLAYER.reviveTime+.01);
+  assert.equal(p.state,'alive');const z=enemy(r,'walker',600,600);r.hitZombie(z,10000,ally.id,true);
+  const report=r.nightReport();assert.equal(report.baseDamage,500);assert.equal(report.downs,1);assert.equal(report.kills,1);
+  assert.equal(report.rescuer.name,'Rescuer');assert.equal(report.rescuer.count,1);assert.equal(report.hunter.name,'Rescuer');
+  p.hp=10;assert.equal(r.nightReport().clutch,true);
+});
 console.log('RESULT: '+count+' progression tests passed');
 }finally{clearInterval(tickTimer);}
