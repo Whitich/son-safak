@@ -16,7 +16,7 @@
     if(el){el.textContent=error?'Ses açılamadı: sesi dene düğmesine bas':(muted||volume===0)?'SES KAPALI':context?.state==='running'?'SES HAZIR':'SES İLK TIKLAMADA AÇILIR';el.dataset.state=error?'error':context?.state||'idle';el.dataset.scheduled=String(scheduled);}
     const input=document.getElementById('volumeInput');if(input&&document.activeElement!==input)input.value=Math.round(volume*100);
     const value=document.getElementById('volumeValue');if(value)value.textContent=Math.round(volume*100)+'%';
-    const button=document.getElementById('muteBtn');if(button)button.textContent=muted?'EFEKT KAPALI':'EFEKT AÇIK';
+    const button=document.getElementById('muteBtn');if(button)button.textContent=(muted||volume===0)?'EFEKT KAPALI':'EFEKT AÇIK';
     musicStatus();
   }
   function ensure(){
@@ -103,7 +103,7 @@
     if(!context||musicMuted||musicVolume===0||context.state!=='running')return;
     const t=context.currentTime+.04;for(const [i,f] of (record?[261.626,329.628,391.995,523.251]:[130.813,164.814,195.998]).entries())musicNote(f,t+i*.12,2.2,.09,'sine');
   }
-  window.GameAudio={unlock,tone,noise,test,setVolume,setScene,musicTick,setMusicVolume,toggleMusic,dawn,get musicMuted(){return musicMuted},get musicVolume(){return musicVolume},toggle(){muted=!muted;apply();if(!muted)void test();return muted},get muted(){return muted},get volume(){return volume},get state(){return context?.state||'idle'}};
+  window.GameAudio={unlock,tone,noise,test,setVolume,setScene,musicTick,setMusicVolume,toggleMusic,dawn,get musicMuted(){return musicMuted},get musicVolume(){return musicVolume},toggle(){muted=!(muted||volume===0);apply();if(!muted)void test();return muted},get muted(){return muted},get volume(){return volume},get state(){return context?.state||'idle'}};
   document.addEventListener('pointerdown',()=>{void unlock()},{capture:true});
   document.addEventListener('keydown',()=>{void unlock()},{capture:true});
   document.addEventListener('visibilitychange',()=>{lastMusicUpdate=-Infinity;if(document.hidden)fadeVoices();musicTick();if(!document.hidden&&context)void unlock()});

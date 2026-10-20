@@ -16,5 +16,6 @@ audio.setMusicVolume(.5);assert.equal(storage.get('ss_music_volume'),'0.5');asse
 contexts[0].currentTime=10;audio.setScene({active:true,phase:'prep',wave:11,baseRatio:1});audio.musicTick();const dayCutoff=filters[0].frequency.value;
 contexts[0].currentTime=11;audio.setScene({active:true,phase:'wave',wave:12,baseRatio:.2});audio.musicTick();assert.ok(filters[0].frequency.value>dayCutoff);
 contexts[0].currentTime=12;audio.setScene({active:false});audio.musicTick();assert.equal(musicGain.gain.value,0);
+audio.setVolume(0);assert.equal(els.get('muteBtn').textContent,'EFEKT KAPALI');audio.toggle();await Promise.resolve();assert.ok(lastMaster.gain.value>0);
 console.log('PASS | independent procedural music, persistence, tension and stop on leaving');
 })().catch(e=>{console.error(e);process.exitCode=1});
