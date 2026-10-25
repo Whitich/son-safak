@@ -134,8 +134,9 @@ function makeRoom(nPlayers) {
 {
   const { room, list } = makeRoom(1);
   room.start();
-  room.gold = 40;
-  log('yetersiz altınla inşa reddi', !room.build('wall', 100, 100, list[0].id) && room.gold === 40);
+  const poor = C.BUILD.wall.cost - 1;
+  room.gold = poor;
+  log('yetersiz altınla inşa reddi', !room.build('wall', 100, 100, list[0].id) && room.gold === poor);
   room.gold = 100;
   log('dünya dışına inşa reddi', !room.build('wall', -50, 100, list[0].id) && room.gold === 100);
   log('geçerli inşa kabul', room.build('wall', 700, 500, list[0].id) && room.gold === 100-C.BUILD.wall.cost);

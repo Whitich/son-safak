@@ -1,4 +1,4 @@
-# Son Şafak 5.0
+# Son Şafak 5.1
 
 [Tarayıcıda oyna](https://son-safak.onrender.com/) — 1–8 kişilik kooperatif zombi savunması.
 
@@ -12,7 +12,7 @@
 
 Market: 12 kalıcı silah, 9 yapı, 6 destek ve 7 kademeli ortak geliştirme. Başlangıç ortak parası tek oyuncuda $550; ek oyuncu başına $200. İlk hazırlık 45 sn, sonraki hazırlıklar 30 sn. Market oyunu durdurmaz.
 
-Duvar, çelik barikat ve kapı taret ateşini engeller. Oyuncu mermileri dost yapılardan geçer. Demir çit ($130 / 300 can) zombileri ve oyuncuları durdururken taret ateşini ve asidi geçirir; her üs seviyesinde kullanılabilir ve seviye basılabilir. Kapı oyunculara geçiş verirken zombileri durdurur. Dikenli tel yavaşlatır ve hasar verir; mayın tek kullanımlık alan patlamasıdır. Taretlerin menzil ve etkileri farklıdır. Duvar $45 / 240 can; yapı tamiri $15 / 160 can.
+Duvar, çelik barikat ve kapı taret ateşini engeller. Oyuncu mermileri dost yapılardan geçer. Demir çit ($45 / 300 can) zombileri ve oyuncuları durdururken taret ateşini ve asidi geçirir; her üs seviyesinde kullanılabilir ve seviye basılabilir. Kapı oyunculara geçiş verirken zombileri durdurur. Dikenli tel yavaşlatır ve hasar verir; mayın tek kullanımlık alan patlamasıdır. Taretlerin menzil ve etkileri farklıdır. Duvar $15 / 240 can; yapı tamiri $5 / 160 can.
 
 Her başarılı gecenin sonunda en az bir oyuncu ayaktaysa tüm ekip tam can ve şarjörle geri döner. Üs otomatik onarılmaz. Üs düşerse veya herkes ölürse maç biter.
 
@@ -45,9 +45,9 @@ Ses Web Audio motoruyla ilk kullanıcı etkileşiminde açılır. Ana menüden S
 | Üs | Tamamlanan gece şartı | Maliyet | Can | Taret kapasitesi |
 | --- | --- | --- | --- | --- |
 | 1 — Sığınak | 0 | Başlangıç | 3000 | 4 |
-| 2 — Karakol | 3 | $650 | 3800 | 6 |
-| 3 — Kale | 6 | $1500 | 4700 | 8 |
-| 4 — Son Hat | 10 | $3000 | 5800 | 10 |
+| 2 — Karakol | 3 | $215 | 3800 | 6 |
+| 3 — Kale | 6 | $500 | 4700 | 8 |
+| 4 — Son Hat | 10 | $1000 | 5800 | 10 |
 
 Üs yalnızca hazırlıkta, sırayla ve ortak kasadan yükseltilir. Yeni kapasite kadar can eklenir; hasar bedavaya onarılmaz. Üs 2 taarruz, nişancı, kriyo ve alev silahlarını, çelik barikatı ve uzman taretleri açar. Üs 3 Tesla, lazer, LMG ve bomba atarı açar. Kilitli ürünler markette görünür ve gereken seviyeyi yazar.
 
@@ -67,7 +67,7 @@ Taret hedeflemesi görüş hattını kontrol eder; kapalı hedef yerine açık h
 
 ## Market görselleri ve akıcılık (4.4)
 
-Silahlar, savunmalar, destekler, ekip geliştirmeleri, üsler ve tek tek yapı geliştirmeleri ürün çizimi taşır. Silah fiyatları yaklaşık %8 düşürüldü (en yakın $5'e yuvarlanır). Duvar $45, çelik barikat $100, kapı $80, demir çit $130; diğer yapı ve geliştirme fiyatları aynı kalır.
+Silahlar, savunmalar, destekler, ekip geliştirmeleri, üsler ve tek tek yapı geliştirmeleri ürün çizimi taşır. Silah fiyatları yaklaşık %8 düşürüldü (en yakın $5'e yuvarlanır). Duvar $45, çelik barikat $100, kapı $80, demir çit $130; diğer yapı ve geliştirme fiyatları aynı kalır. (5.1'de bu fiyatların üzerine ikinci bir indirim yapıldı; güncel liste 5.1 bölümündedir.)
 
 Sol üstte ms (sunucuya gidiş-dönüş süresi) ve gerçek çizim FPS'i gösterilir. Zombi yön/adım çizimleri 384 girişli bir önbellekte yeniden kullanılır; ekran dışındaki zombiler çizilmez. Vuruş sesi sıklığı ve parçacık sayısı sınırlandırılır. Yüksek yenileme hızlarında gereksiz çizim yükünü azaltmak için çizim 60 FPS ile sınırlıdır; hareket/girdi ve sunucu güncellemesi bu sınıra bağlı değildir. Yerel 100 zombi görsel kontrolünde 60 FPS görüldü; bu, her cihaz veya internet bağlantısı için garanti değildir.
 
@@ -80,3 +80,52 @@ Web Audio ile dış dosyasız atmosfer müziği: gündüz daha sıcak akorlar, g
 İsabetlerde kısa görsel tepki, zırhta metal sesi/kıvılcımı, asit türlerinde farklı efekt, silahlarda küçük geri tepme ve namlu parlaması bulunur. Efekt bütçesi ve sprite önbelleği korunur.
 
 Gece sonu sunucu raporu gerçek süreyi, toplam öldürmeyi, tamir edilse bile alınan üs hasarını, yere düşmeleri, en çok öldüreni ve kurtaranı sayar. Gün doğumunda başarı etiketleri ve cihazdaki yeni rekor kutlaması gösterilir. İlave ceza, özel gece koşulu veya ekonomi/zorluk değişikliği eklenmedi.
+
+## Ekonomi güncellemesi (5.1)
+
+Fiyatlar iki kademede düşürüldü: kalıcı silahlar yarıya, savunma yapıları 3'te 1'e, üs yükseltmeleri 3'te 1'e indi. Tüm fiyatlar en yakın $5'e yuvarlanır, tabanca ücretsiz kalır. Silah hasarı, menzil, şarjör, açılış geceleri, yapı canı ve üs kapasitesi değişmedi; yalnızca fiyat tabloları değişti. Aynı fiyatlar sunucuda da doğrulanır (tek kaynak: `public/game-core.js`).
+
+### Kalıcı silahlar — yarı fiyat
+
+| Silah | Üs | Eski | Yeni |
+| --- | --- | --- | --- |
+| Tabanca | 1 | $0 | $0 |
+| Magnum | 1 | $240 | $120 |
+| SMG | 1 | $370 | $185 |
+| Pompalı | 1 | $600 | $300 |
+| Taarruz Tüfeği | 2 | $780 | $390 |
+| Nişancı Tüfeği | 2 | $1105 | $555 |
+| Kriyo Tüfeği | 2 | $1010 | $505 |
+| Alev Püskürtücü | 2 | $875 | $440 |
+| LMG | 3 | $1655 | $830 |
+| Bomba Atar | 3 | $1750 | $875 |
+| Odak Lazeri | 3 | $1565 | $785 |
+| Tesla Yayı | 3 | $1335 | $670 |
+
+### Savunma yapıları — 3'te 1
+
+| Yapı | Üs | Can | Eski | Yeni |
+| --- | --- | --- | --- | --- |
+| Duvar | 1 | 240 | $45 | $15 |
+| Taret | 1 | 300 | $350 | $115 |
+| Demir Çit | 1 | 300 | $130 | $45 |
+| Çelik Barikat | 2 | 700 | $100 | $35 |
+| Geçiş Kapısı | 1 | 300 | $80 | $25 |
+| Dikenli Tel | 1 | 180 | $65 | $20 |
+| Yakınlık Mayını | 1 | 1 | $90 | $30 |
+| Keskin Taret | 2 | 260 | $700 | $235 |
+| Kriyo Taret | 2 | 260 | $500 | $165 |
+
+### Üs yükseltmeleri — 3'te 1
+
+| Üs | Eski | Yeni |
+| --- | --- | --- |
+| 2 — Karakol | $650 | $215 |
+| 3 — Kale | $1500 | $500 |
+| 4 — Son Hat | $3000 | $1000 |
+
+### Yapı seviyeleri ve tamir
+
+Tek tek yapı seviyesi bedeli yapı fiyatından türediği için (`structureUpgradeCost = ceil(fiyat × 0.6 × seviye)`) o da 3'te 1'e indi: duvar $9/$18/$27, demir çit $27/$54/$81, çelik barikat $21/$42/$63, geçiş kapısı $15/$30/$45, dikenli tel $12/$24/$36, taret $69/$138/$207, keskin taret $141/$282/$423, kriyo taret $99/$198/$297. Mayın geliştirilemez; söküm iadesi %40 olarak aynı kaldı.
+
+Yapı Tamiri $15 → $5 oldu; böylece tamir (2 × $5 = $10 ile 240 can) hâlâ yeni duvardan ($15) ucuzdur ve marketteki "tamir, yeni yapıdan ucuzdur" kuralı korunur. Üs Tamiri, medkit, mermi, ekip destekleri ve ekip geliştirmeleri değişmedi.

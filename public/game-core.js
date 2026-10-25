@@ -205,6 +205,14 @@
   for(const d of Object.values(WEAPONS))if(d.cost)d.cost=Math.round(d.cost*.92/5)*5;
   Object.assign(BUILD.wall,{cost:45});Object.assign(BUILD.reinforced,{cost:100});
   Object.assign(BUILD.gate,{cost:80});Object.assign(BUILD.fence,{cost:130});
+  // 5.1 economy pass on top of the live prices above: weapons and their upgrades stay
+  // untouched in combat stats, but every permanent weapon costs half and every defensive
+  // structure (walls, fences, barricades, gates, traps, turrets) plus its per-structure
+  // levels cost one third. Support items other than structure repair keep their price.
+  const priceStep = v => Math.max(5, Math.round(v / 5) * 5);
+  for(const d of Object.values(WEAPONS))if(d.cost)d.cost=priceStep(d.cost*.5);
+  for(const d of Object.values(BUILD))d.cost=priceStep(d.cost/3);
+  SHOP.wallrepair.cost=priceStep(SHOP.wallrepair.cost/3);
   const newUpgrades=()=>Object.fromEntries(Object.keys(UPGRADES).map(k=>[k,0]));
   const laserDamage=t=>Math.round(3+147*Math.pow(Math.max(0,Math.min(1,t/4)),3));
   const CLOTHING_COLORS=[
@@ -250,6 +258,8 @@
     {name:'Kale',cost:1500,night:6,hp:4700,turrets:8,desc:'Tesla, lazer, LMG ve bomba atar'},
     {name:'Son Hat',cost:3000,night:10,hp:5800,turrets:10,desc:'Tüm yapıların 4. seviyesi; en yüksek savunma kapasitesi'}
   ];
+  // 5.1 economy pass: raising the base itself costs one third (harbor level 1 stays free).
+  for(const d of BASE_LEVELS)if(d.cost)d.cost=priceStep(d.cost/3);
   for(const id of ['carbine','rifle','frost','flame'])WEAPONS[id].baseLevel=2;
   for(const id of ['lmg','launcher','laser','arc'])WEAPONS[id].baseLevel=3;
   for(const id of ['sniperTurret','frostTurret','reinforced'])BUILD[id].baseLevel=2;

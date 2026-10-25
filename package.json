@@ -1,6 +1,6 @@
 {
   "name": "son-safak",
-  "version": "5.0.1",
+  "version": "5.1.0",
   "description": "Son Şafak — kooperatif zombi savunma oyunu",
   "main": "server.js",
   "scripts": {

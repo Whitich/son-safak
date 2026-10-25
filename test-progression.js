@@ -16,13 +16,13 @@ test('Server enforces weapon and building tier locks without spending money',()=
 test('Base progression requires completed nights, previous tier, prep and money',()=>{
   const {r,p}=setup();assert.equal(r.buy('baselevel',p.id),false);
   r.completed=3;r.base.hp=2000;const g=r.gold;
-  assert.equal(r.buy('baselevel',p.id),true);assert.equal(r.baseLevel,2);assert.equal(r.gold,g-650);
+  assert.equal(r.buy('baselevel',p.id),true);assert.equal(r.baseLevel,2);assert.equal(r.gold,g-C.BASE_LEVELS[1].cost);
   assert.equal(r.base.hp,2800);assert.equal(r.base.maxHp,3800);
   assert.equal(r.buy('arc',p.id),false);assert.equal(r.buy('frost',p.id),true);
   r.completed=6;r.phase='wave';assert.equal(r.buy('baselevel',p.id),false);
   r.phase='prep';assert.equal(r.buy('baselevel',p.id),true);assert.equal(r.buy('arc',p.id),true);
-  r.completed=10;r.gold=2999;assert.equal(r.buy('baselevel',p.id),false);
-  r.gold=3000;assert.equal(r.buy('baselevel',p.id),true);assert.equal(r.buy('baselevel',p.id),false);
+  const top=C.BASE_LEVELS[3].cost;r.completed=10;r.gold=top-1;assert.equal(r.buy('baselevel',p.id),false);
+  r.gold=top;assert.equal(r.buy('baselevel',p.id),true);assert.equal(r.buy('baselevel',p.id),false);
 });
 test('Turret capacity is authoritative; salvage frees a slot',()=>{
   const {r,p}=setup();for(let i=0;i<4;i++)assert.equal(r.build('turret',500+i*100,500,p.id),true);

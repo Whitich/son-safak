@@ -384,7 +384,7 @@ function tryPlace() {
   const def = G.BUILD[placement];
   const w = mouseWorld();
   const x = Math.round(w.x), y = Math.round(w.y);
-  if (!placeValid(placement, x, y)) { feed(gold < def.cost ? 'Ortak para yetersiz. Duvar: $50 · Taret: $350' : 'Kırmızı alan uygun değil. Üssün, duvarların ve zombilerin uzağında boş bir yer seç.', '#ff9d68'); return; }
+  if (!placeValid(placement, x, y)) { feed(gold < def.cost ? 'Ortak para yetersiz. Duvar: $'+G.BUILD.wall.cost+' · Taret: $'+G.BUILD.turret.cost : 'Kırmızı alan uygun değil. Üssün, duvarların ve zombilerin uzağında boş bir yer seç.', '#ff9d68'); return; }
   sendMsg({ t: 'build', k: placement, x, y });
 }
 function placeValid(kind, x, y) {
